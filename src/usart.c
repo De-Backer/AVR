@@ -40,7 +40,7 @@ inline void init_USART0()
 {
     /* set double speed mode */
     // UCSR0A = (1 << U2X0);
-    init_USART0_baud_rate_9600bps();
+    init_USART0_baud_rate_1250000bps();
 
     /* Enable  transmitter */
     /* Enable receiver */
