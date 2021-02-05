@@ -1,5 +1,7 @@
 #include "../include/adc.h"
 
+#include <util/delay.h>
+
 void init_ADC()
 {
     /* DIDR0 – Digital Input Disable Register 0 */
@@ -21,7 +23,41 @@ void init_ADC()
     /* ADIE: Interrupt Enable */
     ADCSRA |= (0x01 << ADIE);
 }
+uint16_t ADC_value(uint8_t source)
+{
+    source &= 0b00000111;
+    ADMUX &= 0b11100000; // 0
+    ADMUX |= source;
+    uint16_t data  = 0;
+    uint16_t data2 = 0;
+    uint16_t data3 = 0;
+    _delay_ms(2);
+    /* Sleep Enable */
+    SMCR |= (0x01 << SE);
+    __asm__("SLEEP");
 
+    data = ADCL; /* ADCL must be read first, then ADCH ref 23.9.3 */
+    data |= (ADCH << 2);
+
+    uint8_t var = 0;
+    for (; var < 2; ++var)
+    {
+        uint8_t var1 = 0;
+        for (; var1 < 10; ++var1)
+        {
+            /* Sleep Enable */
+            SMCR |= (0x01 << SE);
+            __asm__("SLEEP");
+
+            data = ADCL; /* ADCL must be read first, then ADCH ref 23.9.3 */
+            data |= (ADCH << 2);
+            data2 += data;
+        }
+
+        data3 += (data2 >> 0);
+    }
+    return data3;
+}
 /* interrupt */
 ISR(ADC_vect)
 {
