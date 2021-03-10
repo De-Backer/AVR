@@ -1,0 +1,116 @@
+ 
+0 0000
+1 0001
+2 0010
+3 0011
+4 0100
+5 0101
+6 0110
+7 0111
+8 1000
+9 1001
+A 1010
+B 1011
+C 1100
+D 1101
+E 1110
+F 1111
+
+
+alle veranderingen komen op de bus eg.: knop ingedrukt, uitgang aan/uit, en dit voor feedback
+
+
+CAN data
+________
+
+ID
+
+012 3456 789A
+--- ---------
+|    |
+|    |------------------------------ function
+|
+|------------ Priority
+        0x000 - 000 _______reserve
+        0x100 - 001 global         / global function
+        0x200 - 010 High           / module adres 01-FE
+        0x300 - 011 _______reserve
+        0x400 - 100 config         / module adres 01-FE
+        0x500 - 101 _______reserve
+        0x600 - 110 normale        / module adres 01-FE
+        0x700 - 111 _______reserve
+________________________________________________
+Priority
+- High / normale
+  from module adres 01-FE
+  data 0 : command 00-FF
+           - 00    void --> error in code µc
+           - 01    1 ingang
+           - 02    1 uitgang
+           - 03    alle ingangen deel 1
+           - 04    alle uitgangen  deel 1
+           - 05    alle ingangen deel 2
+           - 06    alle uitgangen  deel 2
+           - ...
+           - 0B    alle ingangen deel 5
+           - 0C    alle uitgangen  deel 5
+           
+           - 0D-0F reserve
+           
+           - 10    1 extended ingang
+           - 11    1 extended uitgang
+           - 12    extended ingangen 1
+           - 13    extended uitgangen 1
+           - 14    extended ingangen 2
+           - 15    extended uitgangen 2
+           - ...
+           - 1B    extended ingangen 5
+           - 1C    extended uitgangen 5
+           
+           - 1D-EF reserve
+           
+           - F0    request data from
+           - F1-FF reserve
+  data 1 : data block
+  data 2 : data block
+  data 3 : data block
+  data 4 : data block
+  data 5 : data block
+  data 6 : data block
+  data 7 : data block
+
+  command 1 (extended) ingang/uitgang data block
+  data 1 : number   00-FF
+            PIN/PORT A /or extended 0-7
+            PIN/PORT B /or extended 8-15
+            PIN/PORT C /or extended 16-23
+            PIN/PORT D /or extended 24-31
+            PIN/PORT E /or extended 32-39
+            PIN/PORT F /or extended 40-47
+            PIN/PORT G /or extended 48-55
+            PIN/PORT H /or extended 56-63
+            PIN/PORT I /or extended
+            PIN/PORT J /or extended
+            PIN/PORT K /or extended
+            PIN/PORT L /or extended
+            PIN/PORT M /or extended
+            PIN/PORT N /or extended
+            PIN/PORT O /or extended
+            PIN/PORT P /or extended
+            ...
+  data 2 : toestand 00-FF
+  data n : niet gebruikt/reserve
+  
+  command alle 1  (extended) ingangen/uitgangen data block
+  data 1 : PIN/PORT A /or extended 0-7
+  data 2 : PIN/PORT B /or extended 8-15
+  data 3 : PIN/PORT C /or extended 16-23
+  data 4 : PIN/PORT D /or extended 24-31
+  data 5 : PIN/PORT E /or extended 32-39
+  data 6 : PIN/PORT F /or extended 40-47
+  data 7 : PIN/PORT G /or extended 48-55
+  
+  request data from
+  data 1 : module adres
+  data 2 : command 01-EF
+  data n : niet gebruikt/reserve
