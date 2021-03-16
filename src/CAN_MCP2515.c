@@ -54,7 +54,12 @@ PhaseSeg2 2
 
     /*  Synchronization Jump Width: Length = 1 x TQ
      *  Baud Rate Prescaler bits  :TQ = 2 x (1 + 1)/FOSC(8Mhz) = 250ns */
-    MCP2515_write_register(CNF1, 0x00);
+    MCP2515_write_register(CNF1, 0x01);
+
+    /* set interrupt when message was received, Message Error Interrupt */
+    //    MCP2515_write_register(
+    //        CANINTE,
+    //        ((1 << RX1IE) | (1 << RX0IE) | (1 << MERRE)));
 
     /* set interrupt when message was received */
     MCP2515_write_register(CANINTE, ((1 << RX1IE) | (1 << RX0IE)));
@@ -215,7 +220,7 @@ void MCP2515_check_for_interrupts(void)
 
             MCP2515_bit_modify(CANINTF, (1 << RX0IF), 0x00);
         }
-        else if (can_interrupt & (1 << RX1IF))
+        if (can_interrupt & (1 << RX1IF))
         {
             /* Receive Buffer 2 Full Interrupt */
             /* ToDo process */
@@ -223,39 +228,45 @@ void MCP2515_check_for_interrupts(void)
 
             MCP2515_bit_modify(CANINTF, (1 << RX1IF), 0x00);
         }
-        else if (can_interrupt & (1 << TX0IF))
+        if (can_interrupt & (1 << TX0IF))
         {
             /* Transmit Buffer 0 Empty Interrupt */
             /* ToDo process */
             MCP2515_bit_modify(CANINTF, (1 << TX0IF), 0x00);
         }
-        else if (can_interrupt & (1 << TX1IF))
+        if (can_interrupt & (1 << TX1IF))
         {
             /* Transmit Buffer 1 Empty Interrupt */
             /* ToDo process */
             MCP2515_bit_modify(CANINTF, (1 << TX1IF), 0x00);
         }
-        else if (can_interrupt & (1 << TX2IF))
+        if (can_interrupt & (1 << TX2IF))
         {
             /* Transmit Buffer 2 Empty Interrupt */
             /* ToDo process */
             MCP2515_bit_modify(CANINTF, (1 << TX2IF), 0x00);
         }
-        else if (can_interrupt & (1 << ERRIF))
+        if (can_interrupt & (1 << ERRIF))
         {
             /* Error Interrupt */
+            MCP2515_read_register(EFLG);
+            MCP2515_read_register(TEC);
+            MCP2515_read_register(REC);
             /* ToDo process */
             MCP2515_bit_modify(CANINTF, (1 << ERRIF), 0x00);
         }
-        else if (can_interrupt & (1 << WAKIF))
+        if (can_interrupt & (1 << WAKIF))
         {
             /* Wake-up Interrupt */
             /* ToDo process */
             MCP2515_bit_modify(CANINTF, (1 << WAKIF), 0x00);
         }
-        else if (can_interrupt & (1 << MERRF))
+        if (can_interrupt & (1 << MERRF))
         {
             /* Message Error Interrupt */
+            MCP2515_read_register(EFLG);
+            MCP2515_read_register(TEC);
+            MCP2515_read_register(REC);
             /* ToDo process */
             MCP2515_bit_modify(CANINTF, (1 << MERRF), 0x00);
         }
@@ -383,7 +394,8 @@ unsigned char MCP2515_message_RX(void)
     }
     else
     {
-        return 0;
+        MCP2515_check_for_interrupts();
+        return 0; // 18 0001 1000
     }
 
     MCP2515_SELECT();
