@@ -46,16 +46,18 @@ Priority
   data 0 : command 00-FF
            - 00    void --> error in code µc
            - 01    1 ingang
-           - 02    1 uitgang
-           - 03    alle ingangen deel 1
-           - 04    alle uitgangen  deel 1
-           - 05    alle ingangen deel 2
-           - 06    alle uitgangen  deel 2
+           - 02    1 ADC-ingang
+           - 03    1 uitgang
+           - 04    1 DAC-uitgang
+           - 05    alle ingangen deel 1
+           - 06    alle uitgangen  deel 1
+           - 07    alle ingangen deel 2
+           - 08    alle uitgangen  deel 2
            - ...
-           - 0B    alle ingangen deel 5
-           - 0C    alle uitgangen  deel 5
+           - 0D    alle ingangen deel 5
+           - 0E    alle uitgangen  deel 5
            
-           - 0D-0F reserve
+           - 0F reserve
            
            - 10    1 extended ingang
            - 11    1 extended uitgang
@@ -67,8 +69,12 @@ Priority
            - 1B    extended ingangen 5
            - 1C    extended uitgangen 5
            
-           - 1D-EF reserve
+           - 1D-DF reserve
            
+           - E0    data (spanning stroom)
+
+           - D0-DF reserve
+
            - F0    request data from
            - F1-FF reserve
   data 1 : data block
@@ -100,7 +106,7 @@ Priority
             ...
   data 2 : toestand 00-FF
   data n : niet gebruikt/reserve
-  
+
   command alle 1  (extended) ingangen/uitgangen data block
   data 1 : PIN/PORT A /or extended 0-7
   data 2 : PIN/PORT B /or extended 8-15
@@ -109,8 +115,23 @@ Priority
   data 5 : PIN/PORT E /or extended 32-39
   data 6 : PIN/PORT F /or extended 40-47
   data 7 : PIN/PORT G /or extended 48-55
-  
+
   request data from
   data 1 : module adres
   data 2 : command 01-EF
   data n : niet gebruikt/reserve
+
+- config
+  to module adres 01-FE
+  data 0 : command 00-FF
+           - 00    void --> error in code µc
+		   - 01    set EEPROM
+		   - 02    set RAM
+		   - 03    set ROM (bootloader)
+  data 1 : command 00-FF
+  data 2 : data-adres
+  data 3 : data-adres
+  data 4 : data blok
+  data 5 : data blok
+  data 6 : data blok
+  data 7 : data blok

@@ -2,6 +2,14 @@
 
 #include <stdlib.h>
 
+static void init_USART0_baud_rate_2500000bps()
+{
+    /* set double speed mode */
+    UCSR0A = (1 << U2X0);
+    /* set the baud rate */
+    UBRR0H = 0;
+    UBRR0L = 0;
+}
 static void init_USART0_baud_rate_1250000bps()
 {
     /* set the baud rate */
@@ -33,14 +41,12 @@ static void init_USART0_baud_rate_2400bps()
  * - 8 data bits
  * - No parity bit
  * - one stop bits
- * baud rate: 1250000bps
+ * baud rate: 2500000bps
  * 0% Error
  **/
 inline void init_USART0()
 {
-    /* set double speed mode */
-    // UCSR0A = (1 << U2X0);
-    init_USART0_baud_rate_1250000bps();
+    init_USART0_baud_rate_2500000bps();
 
     /* Enable  transmitter */
     /* Enable receiver */
@@ -80,14 +86,15 @@ void Test_Transmit_USART0()
 
 ISR(USART0_RX_vect)
 {
+    unsigned char data = UDR0;
     if (RingBuffer_IsFull(&RX_Buffer))
     {
         /* Buffer Is Full */
         /* Set error */
         PORTC |= (0x01 << 1);
 
-        char*         Buffer = "ERROR RX Buffer ";
-        unsigned char data   = UDR0;
+        char* Buffer = "ERROR RX Buffer ";
+
         Transmit_USART0(10); /* new line */
         Transmit_USART0(10); /* new line */
 
@@ -100,5 +107,8 @@ ISR(USART0_RX_vect)
 
         return;
     }
-    RingBuffer_Insert(&RX_Buffer, UDR0);
+
+    RingBuffer_Insert(&RX_Buffer, data);
+
+    Transmit_USART0(data); /* echo */
 }
