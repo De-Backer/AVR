@@ -15,7 +15,6 @@ include(cmake/git_last_commit_sha.cmake)
 include(cmake/atmega1284p.cmake)
 include(cmake/avr_pre.cmake)
 
-add_library(ADC src/adc.c include/adc.h)
 add_library(USART src/usart.c include/usart.h)
 
 #CAN_MCP2515
@@ -38,7 +37,7 @@ add_library(BUFFER src/RingBuffer.c include/RingBuffer.h)
 # Create one target
 add_executable(AVR src/main.c)
 
-target_link_libraries(AVR PRIVATE ADC USART BUFFER CAN_MCP2515 SPI)
+target_link_libraries(AVR PRIVATE USART BUFFER CAN_MCP2515 SPI)
 
 include(cmake/avr_post.cmake)
 

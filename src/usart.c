@@ -50,8 +50,7 @@ inline void init_USART0()
 
     /* Enable  transmitter */
     /* Enable receiver */
-    /* Enable  RX Complete Interrupt */
-    UCSR0B = (1 << TXEN0) | (1 << RXEN0) | (1 << RXCIE0);
+    UCSR0B = (1 << TXEN0) | (1 << RXEN0);
     /* Set frame format: 8data, 1 stop bit */
     UCSR0C = (3 << UCSZ00);
     RingBuffer_InitBuffer(&RX_Buffer, RX_BufferData, sizeof(RX_BufferData));
@@ -84,31 +83,34 @@ void Test_Transmit_USART0()
     Transmit_USART0(10); /* new line */
 }
 
-ISR(USART0_RX_vect)
+void Receive_USART0()
 {
-    unsigned char data = UDR0;
-    if (RingBuffer_IsFull(&RX_Buffer))
+    if (UCSR0A & (1 << RXC0))
     {
-        /* Buffer Is Full */
-        /* Set error */
-        PORTC |= (0x01 << 1);
+        unsigned char data = UDR0;
+        if (RingBuffer_IsFull(&RX_Buffer))
+        {
+            /* Buffer Is Full */
+            /* Set error */
+            PORTC |= (0x01 << 1);
 
-        char* Buffer = "ERROR RX Buffer ";
+            char* Buffer = "ERROR RX Buffer ";
 
-        Transmit_USART0(10); /* new line */
-        Transmit_USART0(10); /* new line */
+            Transmit_USART0(10); /* new line */
+            Transmit_USART0(10); /* new line */
 
-        while (*Buffer) { Transmit_USART0(*Buffer++); }
+            while (*Buffer) { Transmit_USART0(*Buffer++); }
 
-        Transmit_USART0(data);
+            Transmit_USART0(data);
 
-        Transmit_USART0(10); /* new line */
-        Transmit_USART0(10); /* new line */
+            Transmit_USART0(10); /* new line */
+            Transmit_USART0(10); /* new line */
 
-        return;
+            return;
+        }
+
+        RingBuffer_Insert(&RX_Buffer, data);
+
+        //        Transmit_USART0(data); /* echo */
     }
-
-    RingBuffer_Insert(&RX_Buffer, data);
-
-    Transmit_USART0(data); /* echo */
 }
