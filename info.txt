@@ -16,9 +16,15 @@ D 1101
 E 1110
 F 1111
 
-
+IODIR   DDR  -Data Direction Register
+GPIO    PORT -Data Register
+GPIO    PIN  -Port Input Pins
+IPOL         –INPUT POLARITY PORT REGISTER
+GPINTEN      –INTERRUPT-ON-CHANGE PINS
+DEFVAL       –DEFAULT VALUE REGISTER
+INTCON       –INTERRUPT-ON-CHANGE CONTROL REGISTER
+ 
 alle veranderingen komen op de bus eg.: knop ingedrukt, uitgang aan/uit, en dit voor feedback
-
 
 CAN data
 ________
