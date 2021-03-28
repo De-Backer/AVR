@@ -414,11 +414,9 @@ unsigned char MCP2515_message_RX(void)
 
     MCP2515_UNSELECT();
 
-    CAN_RX_msg.ext_id = (RXBnSIDL & (1 << EXIDE));
+    CAN_RX_msg.ext_id = (RXBnSIDL & 0x08);
 
-    switch (CAN_RX_msg.ext_id)
-    {
-    case CAN_EXTENDED_FRAME:
+    if ((RXBnSIDL & 0x08)) /* CAN_EXTENDED_FRAME */
     {
         temp = ((unsigned long) RXBnSIDH);
         temp <<= 21;
@@ -440,11 +438,8 @@ unsigned char MCP2515_message_RX(void)
         CAN_RX_msg.id |= temp;
 
         CAN_RX_msg.rtr = (RXBnDLC & (1 << RTR));
-
-        break;
     }
-
-    default:
+    else
     {
         temp          = ((unsigned long) RXBnSIDH);
         CAN_RX_msg.id = (temp << 3);
@@ -454,17 +449,14 @@ unsigned char MCP2515_message_RX(void)
         CAN_RX_msg.id |= (temp >> 5);
 
         CAN_RX_msg.rtr = (RXBnSIDL & (1 << SRR));
+    }
 
-        break;
-    }
-    }
     if ((status & (1 << 6)) != 0)
     { MCP2515_bit_modify(CANINTF, (1 << RX0IF), 0); }
     else
     {
         MCP2515_bit_modify(CANINTF, (1 << RX1IF), 0);
     }
-
     return (1 + (status & 0x07));
 }
 
