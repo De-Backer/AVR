@@ -37,14 +37,14 @@ ID
 |    |------------------------------ function
 |
 |------------ Priority
-        0x000 - 000 _______reserve
-        0x100 - 001 global         / global function
-        0x200 - 010 High           / module adres 01-FE
-        0x300 - 011 _______reserve
-        0x400 - 100 config         / module adres 01-FE
-        0x500 - 101 _______reserve
-        0x600 - 110 normale        / module adres 01-FE
-        0x700 - 111 _______reserve
+        0x0mm - 000 _______reserve
+        0x1mm - 001 global         / global function
+        0x2mm - 010 High           / module adres 01-FE
+        0x3mm - 011 _______reserve
+        0x4mm - 100 config         / module adres 01-FE
+        0x5mm - 101 set            / module adres 01-FE
+        0x6mm - 110 normale        / module adres 01-FE
+        0x7mm - 111 _______reserve
 ________________________________________________
 Priority
 - High / normale
