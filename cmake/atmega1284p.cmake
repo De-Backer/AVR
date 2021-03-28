@@ -21,6 +21,6 @@ add_definitions(-DSPI_MISO=6)
 # AVR Fuses, must be in concordance with your hardware and F_CPU
 # http://eleccelerator.com/fusecalc/fusecalc.php?chip=atmega1284p
 set(E_FUSE 0xFC)  # Brown-out 4.3V
-set(H_FUSE 0x99)  # On-Chip_Debug=OFF JTAG=ON SPI=ON Watchdog=OFF Preserve_EEPROM=OFF Boot=Default
+set(H_FUSE 0x91)  # On-Chip_Debug=OFF JTAG=ON SPI=ON Watchdog=OFF Preserve_EEPROM=ON Boot=Default
 set(L_FUSE 0xD6)  # F S crystal osc. 258K CK + 65ms
 set(LOCK_BIT 0xff)# No lock
