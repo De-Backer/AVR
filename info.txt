@@ -29,7 +29,13 @@ alle veranderingen komen op de bus eg.: knop ingedrukt, uitgang aan/uit, en dit 
 CAN data
 ________
 
-ID
+ID-extended 29bit (11 + 18)
+
+012 3456 789A | BC DEF0 1234 5678 9ABC
+                   -------------------
+                    |-------------- microcontroller_id
+
+ID-normal 11bit
 
 012 3456 789A
 --- ---------
@@ -47,6 +53,11 @@ ID
         0x7mm - 111 _______reserve
 ________________________________________________
 Priority
+- global
+  - 0x1FF
+  data 0 : command 00-FF
+  	   - FF echo microcontroller_id and Module_Adres
+
 - High / normale
   from module adres 01-FE
   data 0 : command 00-FF
