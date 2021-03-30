@@ -23,9 +23,9 @@ extern "C"
 #include "../include/SPI.h"
 #include "../include/usart.h"
 
-#include <avr/io.h>
-//#include <avr/wdt.h>
 #include <avr/eeprom.h>
+#include <avr/io.h>
+#include <avr/wdt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <util/delay.h>
@@ -57,13 +57,25 @@ extern "C"
  *  | data 0 command
  *  | data 1 number
  *  | data 2 toestand
- *  |== 4 byte
+ *  | naam_output
+ *  |== 5 byte
+ *  => [Adres] [command] [number] [toestand] [naam_output]
+ *      0x01     0x01      0x05      0x01       0x10
+ *
  *  +output doet wat?
+ *  |naam_output
  *  |function (aan/uit/pwm/...)
  *  |data
- *  == 6 byte tot
+ *  == 4 byte
+ *  => [naam_output] [function] [PIN-number] [data]
+ *         0x10        0x02       0x00-0xff  0x00-0xff
  *
- *  [Priority and Adres] [data 0]
+ *         function
+ *         - 00 uitgang uit
+ *         - 01 uitgang aan
+ *         - 02 PWM-uitgang
+ *         - 03 DAC-uitgang
+ *
  **/
 #    define EE_EXTENDED_DDR0A 11
 #    define EE_EXTENDED_DDR0B 12
@@ -102,6 +114,14 @@ extern "C"
 #    define EE_EXTENDED_PORT_7B 45
 #    define EE_EXTENDED_PORT_8A 46
 #    define EE_EXTENDED_PORT_8B 47
+
+#    define EE_IO_block 100 // 0x64
+#    define I_max_block 0x08
+#    define O_max_block 0x08
+    uint8_t I_from_EEPROM[I_max_block][5]; // [0--255] [Adres / command / number
+                                           // / toestand / naam_output]
+    uint8_t O_from_EEPROM[O_max_block]
+                         [3]; // [naam_output] [function / PIN-number / data]
 #else
 #    warning "device type not defined"
 #endif
@@ -257,6 +277,163 @@ extern "C"
         }
     }
 
+    void CAN_EEPROM()
+    {
+        Transmit_USART0(10); /* new line */
+        char* Buffer = "- EEPROM -";
+        while (*Buffer) { Transmit_USART0(*Buffer++); }
+        if (CAN_RX_msg.data_byte[1] == 0x01) /* read */
+        {
+            Transmit_USART0(10); /* new line */
+            char* Buffer = "- read -";
+            while (*Buffer) { Transmit_USART0(*Buffer++); }
+
+            uint8_t length = CAN_RX_msg.length;
+            length -= 4;
+            uint16_t ee_adres;
+            ee_adres = (CAN_RX_msg.data_byte[2] << 8);
+            ee_adres |= CAN_RX_msg.data_byte[3];
+            uint8_t temp[4];
+            eeprom_read_block((void*) temp, (const void*) ee_adres, length);
+            CAN_TX_msg.id           = (0x400 | module_adres);
+            CAN_TX_msg.ext_id       = 0;
+            CAN_TX_msg.rtr          = 0;
+            CAN_TX_msg.length       = length + 4;
+            CAN_TX_msg.data_byte[0] = 0x01;
+            CAN_TX_msg.data_byte[1] = 0x03;
+            CAN_TX_msg.data_byte[2] = CAN_RX_msg.data_byte[2];
+            CAN_TX_msg.data_byte[3] = CAN_RX_msg.data_byte[3];
+            CAN_TX_msg.data_byte[4] = temp[0];
+            CAN_TX_msg.data_byte[5] = temp[1];
+            CAN_TX_msg.data_byte[6] = temp[2];
+            CAN_TX_msg.data_byte[7] = temp[3];
+            MCP2515_message_TX();
+        }
+        else if (CAN_RX_msg.data_byte[1] == 0x02) /* update */
+        {
+            Transmit_USART0(10); /* new line */
+            char* Buffer = "- update -";
+            while (*Buffer) { Transmit_USART0(*Buffer++); }
+
+            uint8_t length = CAN_RX_msg.length;
+            length -= 4;
+            uint16_t ee_adres;
+            ee_adres = (CAN_RX_msg.data_byte[2] << 8);
+            ee_adres |= CAN_RX_msg.data_byte[3];
+            uint8_t temp[4];
+            temp[0] = CAN_RX_msg.data_byte[4];
+            temp[1] = CAN_RX_msg.data_byte[5];
+            temp[2] = CAN_RX_msg.data_byte[6];
+            temp[3] = CAN_RX_msg.data_byte[7];
+            eeprom_update_block((const void*) temp, (void*) ee_adres, length);
+
+            /*load data in ram */
+            if (ee_adres == EE_MICROCONTROLLER_ID)
+            {
+                microcontroller_id =
+                    eeprom_read_word((uint16_t*) EE_MICROCONTROLLER_ID);
+            }
+            else if (ee_adres == EE_MODULE_ADRES)
+            {
+                module_adres = eeprom_read_byte((uint8_t*) EE_MODULE_ADRES);
+            }
+            else if (CAN_RX_msg.data_byte[1] == 0x03) /* replay */
+            {
+                /* replay from µc see 0x01 read */
+            }
+            else
+            {
+                char* Buffer = "- TODO !! -";
+                while (*Buffer) { Transmit_USART0(*Buffer++); }
+            }
+        }
+        else
+        {                        /* error in code µc */
+            Transmit_USART0(10); /* new line */
+            char* Buffer = "- error in code µc -";
+            while (*Buffer) { Transmit_USART0(*Buffer++); }
+        }
+    }
+
+    void build_RAM_IO_from_EEPROM()
+    {
+        uint16_t ee_adres = EE_IO_block;
+        uint8_t  temp[5];
+        uint8_t  var = 0;
+        for (; var < I_max_block; ++var)
+        {
+            eeprom_read_block((void*) temp, (const void*) ee_adres, 5);
+            I_from_EEPROM[var][0] = temp[0]; // Adres
+            I_from_EEPROM[var][1] = temp[1]; // command
+            I_from_EEPROM[var][2] = temp[2]; // number
+            I_from_EEPROM[var][3] = temp[3]; // toestand
+            I_from_EEPROM[var][4] = temp[4]; // naam_output
+            ee_adres += 5;
+        }
+        var = 0;
+        for (; var < O_max_block; ++var)
+        {
+            eeprom_read_block((void*) temp, (const void*) ee_adres, 3);
+            O_from_EEPROM[var][0] = temp[0]; // function
+            O_from_EEPROM[var][1] = temp[1]; // number
+            O_from_EEPROM[var][2] = temp[2]; // data
+            ee_adres += 3;
+        }
+    }
+
+    void CAN_messag(
+        uint8_t module, uint8_t command, uint8_t number, uint8_t toestand)
+    {
+        uint8_t var = 0;
+        for (; var > I_max_block; ++var)
+        {
+            if (I_from_EEPROM[var][4] < O_max_block)
+            {
+                if (I_from_EEPROM[var][0] == module)
+                {
+                    if (I_from_EEPROM[var][1] == command)
+                    {
+                        if (I_from_EEPROM[var][2] == number)
+                        {
+                            if (I_from_EEPROM[var][3] == toestand)
+                            {
+                                if (O_from_EEPROM[I_from_EEPROM[var][4]][0]
+                                    == 0x00)
+                                {
+                                    /* uitgang uit */
+                                    set_port(
+                                        O_from_EEPROM[I_from_EEPROM[var][4]][1],
+                                        0x00);
+                                }
+                                else if (
+                                    O_from_EEPROM[I_from_EEPROM[var][4]][0]
+                                    == 0x01)
+                                {
+                                    /* uitgang aan */
+                                    set_port(
+                                        O_from_EEPROM[I_from_EEPROM[var][4]][1],
+                                        0x01);
+                                }
+                                else if (
+                                    O_from_EEPROM[I_from_EEPROM[var][4]][0]
+                                    == 0x02)
+                                {
+                                    /* PWM-uitgang */
+                                }
+                                else if (
+                                    O_from_EEPROM[I_from_EEPROM[var][4]][0]
+                                    == 0x03)
+                                {
+                                    /* DAC-uitgang */
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /** main */
     int main(void)
     {
@@ -289,16 +466,19 @@ extern "C"
         CAN_TX_msg.data_byte[6] = 0;
         CAN_TX_msg.data_byte[7] = 0;
 
-        //        wdt_enable(WDTO_250MS); /* Watchdog Reset after 250mSec */
+        void build_RAM_IO_from_EEPROM();
+
+        wdt_enable(WDTO_250MS); /* Watchdog Reset after 250mSec */
         for (;;)
         {
             /* loop */;
-            //            wdt_reset(); /* Reset Watchdog timer*/
+            wdt_reset(); /* Reset Watchdog timer*/
             Receive_USART0();
 
             /* verwerk de RX USART0 buffer */
             int8_t RX_BufferCount = RingBuffer_GetCount(&RX_Buffer);
             if (RX_BufferCount > 15) { build_can_block(); }
+
             if (MCP2515_check_for_incoming_message())
             {
                 if (MCP2515_message_RX())
@@ -313,10 +493,7 @@ extern "C"
                     {
                         if (CAN_RX_msg.data_byte[0] == 0x01) /* EEPROM */
                         {
-
-                            Transmit_USART0(10); /* new line */
-                            char* Buffer = "- EEPROM -";
-                            while (*Buffer) { Transmit_USART0(*Buffer++); }
+                            CAN_EEPROM();
                         }
                         else if (CAN_RX_msg.data_byte[0] == 0x02) /* RAM */
                         {
@@ -329,6 +506,42 @@ extern "C"
                             Transmit_USART0(10); /* new line */
                             char* Buffer = "- ROM -";
                             while (*Buffer) { Transmit_USART0(*Buffer++); }
+                        }
+                        else if (CAN_RX_msg.data_byte[0] == 0x04) /* reset */
+                        {
+                            Transmit_USART0(10); /* new line */
+                            char* Buffer = "- reset -";
+                            while (*Buffer) { Transmit_USART0(*Buffer++); }
+                            if (CAN_RX_msg.data_byte[1] == 0x04)
+                            {
+                                wdt_enable(WDTO_15MS); /* Watchdog Reset after
+                                                          15mSec */
+                                CAN_TX_msg.id =
+                                    (0x01000000 | microcontroller_id);
+                                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+                                CAN_TX_msg.rtr          = 0;
+                                CAN_TX_msg.length       = 8;
+                                CAN_TX_msg.data_byte[0] = MICROCONTROLLER_TYPE;
+                                CAN_TX_msg.data_byte[1] = PROTOCOL_VERSIE;
+                                CAN_TX_msg.data_byte[2] = module_adres;
+                                CAN_TX_msg.data_byte[3] = 0x04;
+                                CAN_TX_msg.data_byte[4] = 0x04;
+                                CAN_TX_msg.data_byte[5] = 0x04;
+                                CAN_TX_msg.data_byte[6] = 0x04;
+                                CAN_TX_msg.data_byte[7] = 0x04;
+
+                                MCP2515_message_TX();
+                                for (;;)
+                                {
+                                    /* Watchdog Reset */
+                                    Buffer = "- reseting -";
+                                    Transmit_USART0(10); /* new line */
+                                    while (*Buffer)
+                                    {
+                                        Transmit_USART0(*Buffer++);
+                                    }
+                                }
+                            }
                         }
                         else
                         {                        /* error in code µc */
@@ -397,12 +610,23 @@ extern "C"
 
                     /* 2 High */
                     /* 6 normale */
+                    /*!! bug in code  (CAN_RX_msg.id & 0x200) #ToDo */
                     else if ((CAN_RX_msg.id & 0x200) || (CAN_RX_msg.id & 0x600))
                     {
                         /* test CAN id on list */
+                        ; /* filter module_adres*/
+                        CAN_messag(
+                            (CAN_RX_msg.id & 0x000000ff),
+                            CAN_RX_msg.data_byte[0],
+                            CAN_RX_msg.data_byte[1],
+                            CAN_RX_msg.data_byte[2]);
 
                         Transmit_USART0(10); /* new line */
                         char* Buffer = "- test CAN id on list -";
+                        while (*Buffer) { Transmit_USART0(*Buffer++); }
+                        Buffer = "000000000"; /* clean buffer */
+
+                        ltoa(CAN_RX_msg.id, Buffer, 10);
                         while (*Buffer) { Transmit_USART0(*Buffer++); }
                     }
 
