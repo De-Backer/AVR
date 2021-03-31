@@ -122,8 +122,8 @@ extern "C"
 #    define EE_EXTENDED_PORT_8B 47
 
 #    define EE_IO_block 100 // 0x64
-#    define I_max_block 0x08 // 0x64 + I_max_block * 5 = ofset for O_from_EEPROM
-#    define O_max_block 0x08
+#    define I_max_block 0xff // 0x64 + I_max_block * 5 = ofset for O_from_EEPROM
+#    define O_max_block 0xff
     uint8_t I_from_EEPROM[I_max_block][5]; // [0--255] [Adres / command / number
                                            // / toestand / naam_output]
     uint8_t O_from_EEPROM[O_max_block]
