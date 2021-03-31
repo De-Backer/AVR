@@ -162,11 +162,70 @@ Priority
 
 test EEPROM:
 I_from_EEPROM 0x64
-01 02 00 64 : 05 01 00 01   =8 //Adres 5 command 1 number 0 toestand 1
-01 02 00 68 : 00            =5 //naam_output => O_from_EEPROM
+01 / 02 00 64 : 05 01 00 01   =8 //Adres 5 command 1 number 0 toestand 1
+01 / 02 00 68 : 00            =5 //naam_output => O_from_EEPROM
 O_from_EEPROM 0x8c
-01 02 00 8c : 01 00 00      =7  // uitgang uit pin 0 data 0
+01 / 02 00 8c : 01 00 00      =7  // uitgang uit pin 0 data 0
 
+test send can:
+05 / 01 00 01                 =3 //Adres 5 command 1 number 0 toestand 1
+
+
+test EEPROM 2:
+I_from_EEPROM 0x64+5= 69
+01 / 02 00 69 : 05 01 00 00   =8 //Adres 5 command 1 number 0 toestand 0
+01 / 02 00 6d : 01            =5 //naam_output => O_from_EEPROM
+O_from_EEPROM 0x8c+3= 8f
+01 / 02 00 8c : 02 00 00      =7  // uitgang togel pin 0 data 0
+
+test send can:
+05 / 01 00 00                 =3 //Adres 5 command 1 number 0 toestand 1
+
+
+pointer        : data
+[naam_intput] : [Adres] [command] [number] [toestand] [naam_output]
+[naam_output] : [function] [PIN-number] [data]
+
+
+EE_IO_block 100 (data-adres)
+I_max_block
+O_max_block
+
+Adres 0x01-0xfe
+command
+- 01    1 ingang
+- 02    1 ADC-ingang
+- 03    1 uitgang
+- 04    1 DAC-uitgang
+number 0x00-0xff
+toestand 0x00-0xff
+naam_output => is de pointer
+
+function
+- 00 uitgang uit
+- 01 uitgang aan
+- 02 uitgang togel
+- 03 PWM-uitgang
+- 04 DAC-uitgang
+PIN-number 0x00-0xff
+data       0x00-0xff
+
+
+
+----------------------------------------------
+Werk voorbeeld: 
+I_from_EEPROM   | O_from_EEPROM
+________________|_____________________________
+toestand ---+ +---+--- naam_output
+number ---+ | | | |  +--- function
+command + | | | | |  | + PIN-number
+Adres + | | | | | |  | | +--- data (niet gebruikt)
+      | | | | | | |  | | |
+      5 1 0 0 0 | 0  0 0 0 ; port A.0 0
+      5 1 0 1 1 | 1  2 1 0 ; port A.1 togel
+      5 1 7 1 0 |
+      5 1 6 1 1 |
+      4 1 F 1 1
 
 
 
