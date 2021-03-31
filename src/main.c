@@ -35,54 +35,82 @@ extern "C"
 #define TOSTRING(x)  STRINGIFY(x)
 #define DEBUG        __FILE__ ":" TOSTRING(__LINE__)
 
+/* CAN to EEPROM
+ * config        0x04
+ * module adres  0x00 - 0xff
+ * Frame and rtr 0x00
+ * length        0x05 - 0x08
+ * data EEPROM   0x01
+ * data EEPROM   0x01 (read) 0x02 (update & read)
+ * data adres_H  0x00 - 0x0f <---(max 4Kbit)
+ * data adres_L  0x00 - 0xff
+ * data 0        0x00 - 0xff
+ * data 1        0x00 - 0xff | see length 6
+ * data 2        0x00 - 0xff |            7
+ * data 3        0x00 - 0xff |            8
+ *
+ *  voorstel:
+ *  reset module om de "echo_id_Adres();" te starten
+ *  dan weet men de:
+ *  -microcontroller_id
+ *  -module_adres         => module_adres
+ *  -MICROCONTROLLER_TYPE
+ *  -PROTOCOL_VERSIE
+ *  -EE_IO_block          => de ofset in de eeprom
+ *  -I_max_block
+ *  -O_max_block
+ */
+/* 0x04 [module_adres] 0x00 0x00 0x06
+ *                0x01 0x02 0x00 0x00 <-- EE_MICROCONTROLLER_ID
+ *                microcontroller_id_H
+ *                microcontroller_id_L
+ *
+ * 0x04 [module_adres] 0x00 0x00 0x05
+ *                0x01 0x02 0x00 0x02 <-- EE_MODULE_ADRES
+ *                module_adres
+ */
+
 /* EEPROM List of parameters */
 #define EE_MICROCONTROLLER_ID 0 /* 16 bit */
 #define EE_MODULE_ADRES       2
 
     uint16_t microcontroller_id = 0x0000; // default
     uint8_t  module_adres       = 0x00;   // default
+    /* ?? => microcontroller_id == 0x0000
+     *  yes can stuurt naar id 0 van id 0
+     *  de µc die stuurt luistert niet naar zijn eigen bericht!
+     * maar niet met 3 µc met id 0 beginnen.
+     */
 
 #if defined(__AVR_ATmega1284P__)
 
 #    define MICROCONTROLLER_TYPE 0x01
 #    define PROTOCOL_VERSIE      0x00
 
+/* 0x04 [module_adres] 0x00 0x00 0x08
+ *                0x01 0x02 0x00 0x03 <-- EE_MICROCONTROLLER_DDRA
+ *                DDRA DDRB DDRC DDRD
+ *
+ *          0x01  0xff  0x00  0x00 0x00
+ *          0x02  0x00  0x00  0x00 0x00
+ */
 #    define EE_MICROCONTROLLER_DDRA 3
 #    define EE_MICROCONTROLLER_DDRB 4
 #    define EE_MICROCONTROLLER_DDRC 5
 #    define EE_MICROCONTROLLER_DDRD 6
 
+/* 0x04 [module_adres]  0x00  0x00  0x08
+ *                0x01  0x02  0x00  0x07 <-- EE_MICROCONTROLLER_PORTA
+ *                PORTA PORTB PORTC PORTD
+ *
+ *          0x01  0xff  0x00  0x00 0x00
+ *          0x02  0x00  0x00  0x00 0x00
+ */
 #    define EE_MICROCONTROLLER_PORTA 7
 #    define EE_MICROCONTROLLER_PORTB 8
 #    define EE_MICROCONTROLLER_PORTC 9
 #    define EE_MICROCONTROLLER_PORTD 10
-/* CAN to out:
- * aantal inputs kopelen aan output
- *  | Adres
- *  | data 0 command
- *  | data 1 number
- *  | data 2 toestand
- *  | naam_output
- *  |== 5 byte
- *  => [Adres] [command] [number] [toestand] [naam_output]
- *      0x01     0x01      0x05      0x01       0x10
- *
- *  +output doet wat?
- *  |naam_output
- *  |function (aan/uit/pwm/...)
- *  |data
- *  == 4 byte
- *  => [naam_output] [function] [PIN-number] [data]
- *         0x10        0x02       0x00-0xff  0x00-0xff
- *
- *         function
- *         - 00 uitgang uit
- *         - 01 uitgang aan
- *         - 02 uitgang togel
- *         - 03 PWM-uitgang
- *         - 04 DAC-uitgang
- *
- **/
+
 #    define EE_EXTENDED_DDR0A 11
 #    define EE_EXTENDED_DDR0B 12
 #    define EE_EXTENDED_DDR1A 13
@@ -120,6 +148,37 @@ extern "C"
 #    define EE_EXTENDED_PORT_7B 45
 #    define EE_EXTENDED_PORT_8A 46
 #    define EE_EXTENDED_PORT_8B 47
+    /* Start reset => new IO laden
+     * 0x04 [module_adres]  0x00  0x00  0x02 0x04 0x04
+     */
+
+    /* CAN to out:
+     * aantal inputs kopelen aan output
+     *  | Adres
+     *  | data 0 command
+     *  | data 1 number
+     *  | data 2 toestand
+     *  | naam_output
+     *  |== 5 byte
+     *  => [Adres] [command] [number] [toestand] [naam_output]
+     *      0x01     0x01      0x05      0x01       0x10
+     *
+     *  +output doet wat?
+     *  |naam_output
+     *  |function (aan/uit/pwm/...)
+     *  |data
+     *  == 4 byte
+     *  => [naam_output] [function] [PIN-number] [data]
+     *         0x10        0x02       0x00-0xff  0x00-0xff
+     *
+     *         function
+     *         - 00 uitgang uit
+     *         - 01 uitgang aan
+     *         - 02 uitgang togel
+     *         - 03 PWM-uitgang
+     *         - 04 DAC-uitgang
+     *
+     **/
 
 #    define EE_IO_block 100 // 0x64
 #    define I_max_block 0xff // 0x64 + I_max_block * 5 = ofset for O_from_EEPROM
@@ -180,11 +239,11 @@ extern "C"
         CAN_TX_msg.data_byte[0] = MICROCONTROLLER_TYPE;
         CAN_TX_msg.data_byte[1] = PROTOCOL_VERSIE;
         CAN_TX_msg.data_byte[2] = module_adres;
-        CAN_TX_msg.data_byte[3] = 0;
-        CAN_TX_msg.data_byte[4] = 0;
-        CAN_TX_msg.data_byte[5] = 0;
-        CAN_TX_msg.data_byte[6] = 0;
-        CAN_TX_msg.data_byte[7] = 0;
+        CAN_TX_msg.data_byte[3] = EE_IO_block;
+        CAN_TX_msg.data_byte[4] = I_max_block;
+        CAN_TX_msg.data_byte[5] = O_max_block;
+        CAN_TX_msg.data_byte[6] = 0; // reseve
+        CAN_TX_msg.data_byte[7] = 0; // reseve
 
         MCP2515_message_TX();
     }
@@ -350,6 +409,10 @@ extern "C"
             ee_adres = (CAN_RX_msg.data_byte[2] << 8);
             ee_adres |= CAN_RX_msg.data_byte[3];
             uint8_t temp[4];
+            temp[0] = 0;
+            temp[1] = 0;
+            temp[2] = 0;
+            temp[3] = 0;
             eeprom_read_block((void*) temp, (const void*) ee_adres, length);
             CAN_TX_msg.id           = (0x400 | module_adres);
             CAN_TX_msg.ext_id       = 0;
@@ -388,6 +451,10 @@ extern "C"
             length -= 4;
             ee_adres = (CAN_RX_msg.data_byte[2] << 8);
             ee_adres |= CAN_RX_msg.data_byte[3];
+            temp[0] = 0;
+            temp[1] = 0;
+            temp[2] = 0;
+            temp[3] = 0;
             eeprom_read_block((void*) temp, (const void*) ee_adres, length);
             CAN_TX_msg.id           = (0x400 | module_adres);
             CAN_TX_msg.ext_id       = 0;
@@ -415,7 +482,9 @@ extern "C"
             }
             else if (ee_adres < EE_EXTENDED_DDR0A)
             {
-                init_io();
+                char* Buffer = "- DO reset -";
+                while (*Buffer) { Transmit_USART0(*Buffer++); }
+                //                init_io();
             }
             else if (ee_adres > (EE_IO_block - 1))
             {
@@ -508,7 +577,16 @@ extern "C"
         init_io();
         init_USART0();
 
-        Test_Transmit_USART0();
+        char* Buffer = "- Start up -";
+        Transmit_USART0(10); /* new line */
+        while (*Buffer) { Transmit_USART0(*Buffer++); }
+        Buffer = "00000000";
+        ltoa(microcontroller_id, Buffer, 10);
+        while (*Buffer) { Transmit_USART0(*Buffer++); }
+        Transmit_USART0(32); /* Spatie */
+        Buffer = "00000000";
+        itoa(module_adres, Buffer, 10);
+        while (*Buffer) { Transmit_USART0(*Buffer++); }
 
         /* can */
         MCP2515_init();
@@ -710,10 +788,6 @@ extern "C"
                     ID id;
                     id.long_id = CAN_RX_msg.id;
                     Transmit_USART0(10); /* new line */
-                    Transmit_USART0(id.int_id[7]);
-                    Transmit_USART0(id.int_id[6]);
-                    Transmit_USART0(id.int_id[5]);
-                    Transmit_USART0(id.int_id[4]);
                     Transmit_USART0(id.int_id[3]);
                     Transmit_USART0(id.int_id[2]);
                     Transmit_USART0(id.int_id[1]);
@@ -721,14 +795,20 @@ extern "C"
                     Transmit_USART0(CAN_RX_msg.ext_id);
                     Transmit_USART0(CAN_RX_msg.rtr);
                     Transmit_USART0(CAN_RX_msg.length);
-                    Transmit_USART0(CAN_RX_msg.data_byte[0]);
-                    Transmit_USART0(CAN_RX_msg.data_byte[1]);
-                    Transmit_USART0(CAN_RX_msg.data_byte[2]);
-                    Transmit_USART0(CAN_RX_msg.data_byte[3]);
-                    Transmit_USART0(CAN_RX_msg.data_byte[4]);
-                    Transmit_USART0(CAN_RX_msg.data_byte[5]);
-                    Transmit_USART0(CAN_RX_msg.data_byte[6]);
-                    Transmit_USART0(CAN_RX_msg.data_byte[7]);
+                    uint8_t var = 0;
+                    for (; var < CAN_RX_msg.length; ++var)
+                    {
+                        Transmit_USART0(CAN_RX_msg.data_byte[var]);
+                    }
+                    //                    Transmit_USART0(CAN_RX_msg.data_byte[0]);
+                    //                    Transmit_USART0(CAN_RX_msg.data_byte[1]);
+                    //                    Transmit_USART0(CAN_RX_msg.data_byte[2]);
+                    //                    Transmit_USART0(CAN_RX_msg.data_byte[3]);
+                    //                    Transmit_USART0(CAN_RX_msg.data_byte[4]);
+                    //                    Transmit_USART0(CAN_RX_msg.data_byte[5]);
+                    //                    Transmit_USART0(CAN_RX_msg.data_byte[6]);
+                    //                    Transmit_USART0(CAN_RX_msg.data_byte[7]);
+
                     //                    char* Buffer;
                     //                    ltoa(CAN_RX_msg.id, Buffer, 10);
                     //                    while (*Buffer) {
