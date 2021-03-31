@@ -142,13 +142,31 @@ Priority
   to module adres 01-FE
   data 0 : command 00-FF
            - 00    void --> error in code µc
-		   - 01    set EEPROM
-		   - 02    set RAM
-		   - 03    set ROM (bootloader)
+           - 01    EEPROM
+	   - 02    RAM               @Todo
+	   - 03    ROM (bootloader)  @Todo
+	   - 04    reset
   data 1 : command 00-FF
-  data 2 : data-adres
-  data 3 : data-adres
-  data 4 : data blok
-  data 5 : data blok
-  data 6 : data blok
-  data 7 : data blok
+           - 00    void --> error in code µc
+           - 01 read
+           - 02 update & read
+           - 03 (echo) zend de µc bij read and update
+	   - 04    nu reseten
+  data 2 : data-adres H
+  data 3 : data-adres L
+  data 4 : data blok ----| a
+  data 5 : data blok ---|| t
+  data 6 : data blok --||| a
+  data 7 : data blok -|||| d
+                      data
+
+test EEPROM:
+I_from_EEPROM 0x64
+01 02 00 64 : 05 01 00 01   =8 //Adres 5 command 1 number 0 toestand 1
+01 02 00 68 : 00            =5 //naam_output => O_from_EEPROM
+O_from_EEPROM 0x8c
+01 02 00 8c : 01 00 00      =7  // uitgang uit pin 0 data 0
+
+
+
+

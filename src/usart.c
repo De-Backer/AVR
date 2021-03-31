@@ -91,8 +91,6 @@ void Receive_USART0()
         if (RingBuffer_IsFull(&RX_Buffer))
         {
             /* Buffer Is Full */
-            /* Set error */
-            PORTC |= (0x01 << 1);
 
             char* Buffer = "ERROR RX Buffer ";
 
