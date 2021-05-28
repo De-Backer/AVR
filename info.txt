@@ -228,4 +228,11 @@ Adres + | | | | | |  | | +--- data (niet gebruikt)
       4 1 F 1 1
 
 
+_______________________________________________________________________________________
+opensuse => canutils
+r pi     => can-utils
 
+ip link show
+sudo ip link set can0 up type can bitrate 250000
+candump can0
+sudo ip link set can0 down

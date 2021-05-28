@@ -73,7 +73,7 @@ inline void Transmit_USART0(unsigned char data)
  */
 void Test_Transmit_USART0()
 {
-    char* Buffer = "Start up";
+    char* Buffer = "Test USART0";
     Transmit_USART0(10); /* new line */
     Transmit_USART0(10); /* new line */
 
@@ -108,7 +108,5 @@ void Receive_USART0()
         }
 
         RingBuffer_Insert(&RX_Buffer, data);
-
-        //        Transmit_USART0(data); /* echo */
     }
 }

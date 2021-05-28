@@ -11,6 +11,21 @@
  * GND
  */
 
+/* Intel_HEX info
+ * : BB AAAA RR DDDD DDDD DDDD DDDD DDDD DDDD DDDD DDDD CC
+ *
+ * :    start code
+ * BB   Byte count (meestal is dit 10 => 16 Bytes)
+ * AAAA Address
+ * RR   Record type
+ *      - 00 Data
+ *      - 01 End of File
+ * DD   Data (*16)
+ * CC   Checksum
+ *      als je alles optelt van "Byte count" tot en met "Checksum"
+ *      moeten de LSB 00 zijn
+ *      eg: 00 + 01 + FF = 100 => x 00 is ok
+ */
 #ifndef _main_c__
 #define _main_c__
 
@@ -227,7 +242,7 @@ extern "C"
         PORTD = eeprom_read_byte((uint8_t*) EE_MICROCONTROLLER_PORTD);
     }
 
-    void echo_id_Adres()
+    void CAN_echo_id_Adres(uint8_t data1, uint8_t data2)
     {
         /* info Microcontroller can */
 
@@ -242,10 +257,39 @@ extern "C"
         CAN_TX_msg.data_byte[3] = EE_IO_block;
         CAN_TX_msg.data_byte[4] = I_max_block;
         CAN_TX_msg.data_byte[5] = O_max_block;
-        CAN_TX_msg.data_byte[6] = 0; // reseve
-        CAN_TX_msg.data_byte[7] = 0; // reseve
+        CAN_TX_msg.data_byte[6] = data1;
+        CAN_TX_msg.data_byte[7] = data2;
 
         MCP2515_message_TX();
+    }
+
+    void USART_echo_id_Adres(uint8_t data1, uint8_t data2)
+    {
+        /* info Microcontroller can */
+
+        typedef union
+        {
+            uint32_t long_id;
+            uint8_t  int_id[8];
+        } ID;
+        ID id;
+        id.long_id = (0x01000000 | microcontroller_id);
+        Transmit_USART0(10); /* new line */
+        Transmit_USART0(id.int_id[3]);
+        Transmit_USART0(id.int_id[2]);
+        Transmit_USART0(id.int_id[1]);
+        Transmit_USART0(id.int_id[0]);
+        Transmit_USART0(CAN_EXTENDED_FRAME);
+        Transmit_USART0(0x00);
+        Transmit_USART0(0x08);
+        Transmit_USART0(MICROCONTROLLER_TYPE);
+        Transmit_USART0(PROTOCOL_VERSIE);
+        Transmit_USART0(module_adres);
+        Transmit_USART0(EE_IO_block);
+        Transmit_USART0(I_max_block);
+        Transmit_USART0(O_max_block);
+        Transmit_USART0(data1);
+        Transmit_USART0(data2);
     }
 
     void set_port(uint8_t uitgang, uint8_t state)
@@ -569,31 +613,36 @@ extern "C"
     /** main */
     int main(void)
     {
-        /* init */
-        microcontroller_id =
-            eeprom_read_word((uint16_t*) EE_MICROCONTROLLER_ID);
-        module_adres = eeprom_read_byte((uint8_t*) EE_MODULE_ADRES);
+        {
+            /* The MCU Status Register provides information on which reset
+             * source caused an MCU reset.
+             * 0x01 Power-on
+             * 0x02 External
+             * 0x04 Brown-out
+             * 0x08 Watchdog
+             * 0x10 JTAG
+             */
+            int8_t Reset_caused_by = MCUSR;
+            MCUSR                  = 0x00; /* Reset the MCUSR */
 
-        init_io();
-        init_USART0();
+            /* init */
+            microcontroller_id =
+                eeprom_read_word((uint16_t*) EE_MICROCONTROLLER_ID);
+            module_adres = eeprom_read_byte((uint8_t*) EE_MODULE_ADRES);
 
-        char* Buffer = "- Start up -";
-        Transmit_USART0(10); /* new line */
-        while (*Buffer) { Transmit_USART0(*Buffer++); }
-        Buffer = "00000000";
-        ltoa(microcontroller_id, Buffer, 10);
-        while (*Buffer) { Transmit_USART0(*Buffer++); }
-        Transmit_USART0(32); /* Spatie */
-        Buffer = "00000000";
-        itoa(module_adres, Buffer, 10);
-        while (*Buffer) { Transmit_USART0(*Buffer++); }
+            init_io();
+            init_USART0();
 
-        /* can */
-        MCP2515_init();
+            /* 0x20 => deze µc is gereset */
+            USART_echo_id_Adres(0x20 | Reset_caused_by, 0x00);
 
-        echo_id_Adres();
+            /* can */
+            MCP2515_init();
 
-        CAN_TX_msg.id           = 20;
+            CAN_echo_id_Adres(Reset_caused_by, 0x00);
+        }
+
+        CAN_TX_msg.id           = 0;
         CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
         CAN_TX_msg.rtr          = 0;
         CAN_TX_msg.length       = 0;
@@ -624,7 +673,10 @@ extern "C"
                 if (MCP2515_message_RX())
                 {
                     /* 1 global */
-                    if (CAN_RX_msg.id == 0x1ff) { echo_id_Adres(); }
+                    if (CAN_RX_msg.id == 0x1ff)
+                    {
+                        CAN_echo_id_Adres(0x00, 0x00);
+                    }
 
                     /* 3 reserve */
 
@@ -656,30 +708,13 @@ extern "C"
                             {
                                 wdt_enable(WDTO_15MS); /* Watchdog Reset after
                                                           15mSec */
-                                CAN_TX_msg.id =
-                                    (0x01000000 | microcontroller_id);
-                                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                                CAN_TX_msg.rtr          = 0;
-                                CAN_TX_msg.length       = 8;
-                                CAN_TX_msg.data_byte[0] = MICROCONTROLLER_TYPE;
-                                CAN_TX_msg.data_byte[1] = PROTOCOL_VERSIE;
-                                CAN_TX_msg.data_byte[2] = module_adres;
-                                CAN_TX_msg.data_byte[3] = 0x04;
-                                CAN_TX_msg.data_byte[4] = 0x04;
-                                CAN_TX_msg.data_byte[5] = 0x04;
-                                CAN_TX_msg.data_byte[6] = 0x04;
-                                CAN_TX_msg.data_byte[7] = 0x04;
 
-                                MCP2515_message_TX();
+                                /* 0x40 => deze µc word gereset */
+                                CAN_echo_id_Adres(0x40, 0x40);
+                                USART_echo_id_Adres(0x40, 0x40);
+
                                 for (;;)
-                                {
-                                    /* Watchdog Reset */
-                                    Buffer = "- reseting -";
-                                    Transmit_USART0(10); /* new line */
-                                    while (*Buffer)
-                                    {
-                                        Transmit_USART0(*Buffer++);
-                                    }
+                                { /* Watchdog Reset */
                                 }
                             }
                         }
@@ -744,7 +779,7 @@ extern "C"
                                     microcontroller_id = 0x0000; /* reset */
                                 }
                             }
-                            echo_id_Adres();
+                            CAN_echo_id_Adres(0x00, 0x00);
                         }
                     }
 
@@ -763,14 +798,6 @@ extern "C"
                                 CAN_RX_msg.data_byte[0],
                                 CAN_RX_msg.data_byte[1],
                                 CAN_RX_msg.data_byte[2]);
-
-                            //                            Transmit_USART0(10);
-                            //                            /* new line */ char*
-                            //                            Buffer = "- test CAN
-                            //                            id on list -"; while
-                            //                            (*Buffer) {
-                            //                            Transmit_USART0(*Buffer++);
-                            //                            }
                         }
                         else
                         {
@@ -796,35 +823,17 @@ extern "C"
                     Transmit_USART0(CAN_RX_msg.rtr);
                     Transmit_USART0(CAN_RX_msg.length);
                     uint8_t var = 0;
-                    for (; var < CAN_RX_msg.length; ++var)
+                    for (; var < 8; ++var)
                     {
-                        Transmit_USART0(CAN_RX_msg.data_byte[var]);
+                        if (var < CAN_RX_msg.length)
+                        {
+                            Transmit_USART0(CAN_RX_msg.data_byte[var]);
+                        }
+                        else
+                        {
+                            Transmit_USART0(0x00);
+                        }
                     }
-                    //                    Transmit_USART0(CAN_RX_msg.data_byte[0]);
-                    //                    Transmit_USART0(CAN_RX_msg.data_byte[1]);
-                    //                    Transmit_USART0(CAN_RX_msg.data_byte[2]);
-                    //                    Transmit_USART0(CAN_RX_msg.data_byte[3]);
-                    //                    Transmit_USART0(CAN_RX_msg.data_byte[4]);
-                    //                    Transmit_USART0(CAN_RX_msg.data_byte[5]);
-                    //                    Transmit_USART0(CAN_RX_msg.data_byte[6]);
-                    //                    Transmit_USART0(CAN_RX_msg.data_byte[7]);
-
-                    //                    char* Buffer;
-                    //                    ltoa(CAN_RX_msg.id, Buffer, 10);
-                    //                    while (*Buffer) {
-                    //                    Transmit_USART0(*Buffer++); }
-                    //                    Transmit_USART0(32); /* Spatie */
-                    //                    uint8_t temp = 0;
-                    //                    for (; temp < CAN_RX_msg.length;
-                    //                    ++temp)
-                    //                    {
-                    //                        Buffer = "000000000"; /* clean
-                    //                        buffer */
-                    //                        itoa(CAN_RX_msg.data_byte[temp],
-                    //                        Buffer, 10); while (*Buffer) {
-                    //                        Transmit_USART0(*Buffer++); }
-                    //                        Transmit_USART0(32); /* Spatie */
-                    //                    }
                 }
             }
         }

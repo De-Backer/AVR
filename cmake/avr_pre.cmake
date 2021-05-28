@@ -26,6 +26,7 @@ add_compile_options(
     -std=gnu99 # C99 standard
     -Os # optimize
     -Wall # enable warnings
+    -save-temps # Do not delete intermediate files.
 #    -Wno-main
 #    -Wundef
 #    -pedantic

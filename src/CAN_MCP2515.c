@@ -271,6 +271,9 @@ void MCP2515_check_for_interrupts(void)
             MCP2515_bit_modify(CANINTF, (1 << MERRF), 0x00);
         }
     }
+
+    // test soms geen can com meer
+    MCP2515_reset();
 }
 /**
  * @brief MCP2515_message_TX
