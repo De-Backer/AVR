@@ -622,8 +622,9 @@ extern "C"
              * 0x08 Watchdog
              * 0x10 JTAG
              */
-            int8_t Reset_caused_by = MCUSR;
-            MCUSR                  = 0x00; /* Reset the MCUSR */
+            // int8_t Reset_caused_by = MCUSR;
+            // MCUSR                  = 0x00; /* Reset the MCUSR */
+            int8_t Reset_caused_by = GPIOR0; /* MCUSR from bootloader */
 
             /* init */
             microcontroller_id =
