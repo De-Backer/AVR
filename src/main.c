@@ -481,7 +481,7 @@ extern "C"
             uint8_t length = CAN_RX_msg.length;
             length -= 4;
             uint16_t ee_adres;
-            ee_adres = (CAN_RX_msg.data_byte[2] << 8);
+            ee_adres = (uint16_t)(CAN_RX_msg.data_byte[2] << 8);
             ee_adres |= CAN_RX_msg.data_byte[3];
             uint8_t temp[4];
             temp[0] = CAN_RX_msg.data_byte[4];
@@ -493,7 +493,7 @@ extern "C"
             /* read */
             length = CAN_RX_msg.length;
             length -= 4;
-            ee_adres = (CAN_RX_msg.data_byte[2] << 8);
+            ee_adres =  (uint16_t)(CAN_RX_msg.data_byte[2] << 8);
             ee_adres |= CAN_RX_msg.data_byte[3];
             temp[0] = 0;
             temp[1] = 0;
@@ -659,9 +659,40 @@ extern "C"
         build_RAM_IO_from_EEPROM();
 
         wdt_enable(WDTO_250MS); /* Watchdog Reset after 250mSec */
+
+        /* Can Watchdog Timer3 */
+        TCCR3A=0x00;
+        TCCR3B=0x05;/*CSn2 en CSn0*/
+        TCCR3C=0x00;
+        uint8_t Can_watchdog=0;
+
         for (;;)
         {
             /* loop */;
+
+            if(TCNT3>65000){
+                TCNT3=0;
+                ++Can_watchdog;
+                if(Can_watchdog>3){
+                    CAN_TX_msg.id           = 0x1fe;
+                    CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                    CAN_TX_msg.rtr          = 0;
+                    CAN_TX_msg.length       = 1;
+                    CAN_TX_msg.data_byte[0] = module_adres;
+                    CAN_TX_msg.data_byte[1] = 0;
+                    CAN_TX_msg.data_byte[2] = 0;
+                    CAN_TX_msg.data_byte[3] = 0;
+                    CAN_TX_msg.data_byte[4] = 0;
+                    CAN_TX_msg.data_byte[5] = 0;
+                    CAN_TX_msg.data_byte[6] = 0;
+                    CAN_TX_msg.data_byte[7] = 0;
+                    MCP2515_message_TX();
+                }
+                if(Can_watchdog>9){/* 1 ≃~ 3sec*/
+                    wdt_enable(WDTO_15MS);/* reset MCU */
+                    for (;;){}
+                }
+            }
             wdt_reset(); /* Reset Watchdog timer*/
             Receive_USART0();
 
@@ -673,6 +704,10 @@ extern "C"
             {
                 if (MCP2515_message_RX())
                 {
+                     /* Reset Watchdog timer can */
+                    TCNT3=0;
+                    Can_watchdog=0;
+
                     /* 1 global */
                     if (CAN_RX_msg.id == 0x1ff)
                     {
