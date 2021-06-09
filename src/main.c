@@ -49,7 +49,12 @@ extern "C"
 #define STRINGIFY(x) #x
 #define TOSTRING(x)  STRINGIFY(x)
 #define DEBUG        __FILE__ ":" TOSTRING(__LINE__)
-
+uint8_t mcusr __attribute__ ((section (".noinit")));//<= the MCU Status Register
+void getMCUSR(void) __attribute__((naked)) __attribute__((section(".init0")));
+void getMCUSR(void)
+{
+    __asm__ __volatile__ ( "mov %0, r2 \n" : "=r" (mcusr) : );
+}
 /* CAN to EEPROM
  * config        0x04
  * module adres  0x00 - 0xff
@@ -610,6 +615,61 @@ extern "C"
         }
     }
 
+    uint8_t input_pol(uint8_t input,uint8_t vpin,uint8_t offset)
+    {
+        uint8_t set_V_input=vpin;
+        uint8_t pin_nr=0x00;
+
+        for(;pin_nr<0x08;++pin_nr)
+        {
+            if(vpin&(0x01<<pin_nr))
+            {
+                //was 1
+                if(!(input&(0x01<<pin_nr))){
+                    //is 0
+                    set_V_input&=~(0x01<<pin_nr);
+
+                    //send pin
+                    CAN_TX_msg.id           = 0x600 | module_adres;
+                    CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                    CAN_TX_msg.rtr          = 0;
+                    CAN_TX_msg.length       = 3;
+                    CAN_TX_msg.data_byte[0] = 0x01; /* 1 ingang */
+                    CAN_TX_msg.data_byte[1] = pin_nr+offset;/* ingang nr */
+                    CAN_TX_msg.data_byte[2] = 0;/* state */
+                    CAN_TX_msg.data_byte[3] = 0;
+                    CAN_TX_msg.data_byte[4] = 0;
+                    CAN_TX_msg.data_byte[5] = 0;
+                    CAN_TX_msg.data_byte[6] = 0;
+                    CAN_TX_msg.data_byte[7] = 0;
+                    MCP2515_message_TX();
+                }
+            } else {
+                //was 0
+                if(input&(0x01<<pin_nr)){
+                    //is 1
+                    set_V_input|=(0x01<<pin_nr);
+
+                    //send pin
+                    CAN_TX_msg.id           = 0x600 | module_adres;
+                    CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                    CAN_TX_msg.rtr          = 0;
+                    CAN_TX_msg.length       = 3;
+                    CAN_TX_msg.data_byte[0] = 0x01; /* 1 ingang */
+                    CAN_TX_msg.data_byte[1] = pin_nr+offset;/* ingang nr */
+                    CAN_TX_msg.data_byte[2] = 1;/* state */
+                    CAN_TX_msg.data_byte[3] = 0;
+                    CAN_TX_msg.data_byte[4] = 0;
+                    CAN_TX_msg.data_byte[5] = 0;
+                    CAN_TX_msg.data_byte[6] = 0;
+                    CAN_TX_msg.data_byte[7] = 0;
+                    MCP2515_message_TX();
+                }
+            }
+        }
+        return set_V_input;
+    }
+
     /** main */
     int main(void)
     {
@@ -624,7 +684,7 @@ extern "C"
              */
             // int8_t Reset_caused_by = MCUSR;
             // MCUSR                  = 0x00; /* Reset the MCUSR */
-            int8_t Reset_caused_by = GPIOR0; /* MCUSR from bootloader */
+            //uint8_t Reset_caused_by = GPIOR0; /* MCUSR from bootloader */
 
             /* init */
             microcontroller_id =
@@ -635,12 +695,12 @@ extern "C"
             init_USART0();
 
             /* 0x20 => deze µc is gereset */
-            USART_echo_id_Adres(0x20 | Reset_caused_by, 0x00);
+            USART_echo_id_Adres(0x20 | mcusr, 0x00);
 
             /* can */
             MCP2515_init();
 
-            CAN_echo_id_Adres(Reset_caused_by, 0x00);
+            CAN_echo_id_Adres(mcusr, 0x00);
         }
 
         CAN_TX_msg.id           = 0;
@@ -665,15 +725,32 @@ extern "C"
         TCCR3B=0x05;/*CSn2 en CSn0*/
         TCCR3C=0x00;
         uint8_t Can_watchdog=0;
+        uint8_t poling=0;
 
+        /* input */
+        uint8_t v_pinA = (PINA & ~DDRA);
+        uint8_t v_pinB = (PINB & ~DDRB);
+        uint8_t v_pinC = (PINC & ~DDRC);
+        uint8_t v_pinD = (PIND & ~DDRD);
         for (;;)
         {
             /* loop */;
 
+            if ((~TCNT3 & 0x1000) && poling==1){
+                poling=0;
+            }
+            if ((TCNT3 & 0x1000) && poling==0){
+                poling=1;
+                v_pinA=input_pol((PINA&~DDRA), v_pinA, 0x00);
+                v_pinB=input_pol((PINB&~DDRB), v_pinB, 0x08);
+                v_pinC=input_pol((PINC&~DDRC), v_pinC, 0x10);
+                v_pinD=input_pol((PIND&~DDRD), v_pinD, 0x18);
+            }
+
             if(TCNT3>65000){
                 TCNT3=0;
                 ++Can_watchdog;
-                if(Can_watchdog>3){
+                if(Can_watchdog>4){
                     CAN_TX_msg.id           = 0x1fe;
                     CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
                     CAN_TX_msg.rtr          = 0;
@@ -688,7 +765,7 @@ extern "C"
                     CAN_TX_msg.data_byte[7] = 0;
                     MCP2515_message_TX();
                 }
-                if(Can_watchdog>9){/* 1 ≃~ 3sec*/
+                if(Can_watchdog>10){/* 1 ≃~ 3sec*/
                     wdt_enable(WDTO_15MS);/* reset MCU */
                     for (;;){}
                 }
@@ -697,7 +774,7 @@ extern "C"
             Receive_USART0();
 
             /* verwerk de RX USART0 buffer */
-            int8_t RX_BufferCount = RingBuffer_GetCount(&RX_Buffer);
+            uint8_t RX_BufferCount = RingBuffer_GetCount(&RX_Buffer);
             if (RX_BufferCount > 15) { build_can_block(); }
 
             if (MCP2515_check_for_incoming_message())
@@ -705,7 +782,6 @@ extern "C"
                 if (MCP2515_message_RX())
                 {
                      /* Reset Watchdog timer can */
-                    TCNT3=0;
                     Can_watchdog=0;
 
                     /* 1 global */
