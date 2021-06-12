@@ -49,5 +49,5 @@ add_compile_options(
 
 
 # directorie to AVR lib
-include_directories(/usr/avr/sys-root/include/)
+include_directories(/usr/lib/avr/include/)
 include_directories(/usr/lib/)
