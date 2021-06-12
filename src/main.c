@@ -49,12 +49,14 @@ extern "C"
 #define STRINGIFY(x) #x
 #define TOSTRING(x)  STRINGIFY(x)
 #define DEBUG        __FILE__ ":" TOSTRING(__LINE__)
-uint8_t mcusr __attribute__ ((section (".noinit")));//<= the MCU Status Register
-void getMCUSR(void) __attribute__((naked)) __attribute__((section(".init0")));
-void getMCUSR(void)
-{
-    __asm__ __volatile__ ( "mov %0, r2 \n" : "=r" (mcusr) : );
-}
+
+//uint8_t mcusr __attribute__ ((section (".noinit")));//<= the MCU Status Register
+//void getMCUSR(void) __attribute__((naked)) __attribute__((section(".init0")));
+//void getMCUSR(void)
+//{
+//    __asm__ __volatile__ ( "mov %0, r2 \n" : "=r" (mcusr) : );
+//}
+
 /* CAN to EEPROM
  * config        0x04
  * module adres  0x00 - 0xff
@@ -207,6 +209,7 @@ void getMCUSR(void)
                                            // / toestand / naam_output]
     uint8_t O_from_EEPROM[O_max_block]
                          [3]; // [naam_output] [function / PIN-number / data]
+    uint8_t current_O[O_max_block][2];// [PIN-number] [function / data]
 #else
 #    warning "device type not defined"
 #endif
@@ -297,20 +300,24 @@ void getMCUSR(void)
         Transmit_USART0(data2);
     }
 
-    void set_port(uint8_t uitgang, uint8_t state)
+    void set_port(uint8_t uitgang, uint8_t state, uint8_t duur)
     {
         CAN_TX_msg.id           = 0x600 | module_adres;
         CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
         CAN_TX_msg.rtr          = 0;
-        CAN_TX_msg.length       = 3;
+        CAN_TX_msg.length       = 4;
         CAN_TX_msg.data_byte[0] = 0x03; /* 1 uitgang */
         CAN_TX_msg.data_byte[1] = uitgang;
         CAN_TX_msg.data_byte[2] = state;
-        CAN_TX_msg.data_byte[3] = 0;
+        CAN_TX_msg.data_byte[3] = duur;
         CAN_TX_msg.data_byte[4] = 0;
         CAN_TX_msg.data_byte[5] = 0;
         CAN_TX_msg.data_byte[6] = 0;
         CAN_TX_msg.data_byte[7] = 0;
+
+        //set current pin state and duur
+        current_O[uitgang][0]=state;
+        current_O[uitgang][1]=duur;
 
         if (uitgang < 0x08) /* PORT A */
         {
@@ -375,6 +382,7 @@ void getMCUSR(void)
             CAN_TX_msg.data_byte[1] = 0x03; /* 1 uitgang */
             CAN_TX_msg.data_byte[2] = uitgang;
             CAN_TX_msg.data_byte[3] = state;
+            CAN_TX_msg.data_byte[4] = duur;
         }
         MCP2515_message_TX();
     }
@@ -575,7 +583,7 @@ void getMCUSR(void)
                                     /* uitgang uit */
                                     set_port(
                                         O_from_EEPROM[I_from_EEPROM[var][4]][1],
-                                        0x00);
+                                        0x00,O_from_EEPROM[I_from_EEPROM[var][4]][2]);
                                 }
                                 else if (
                                     O_from_EEPROM[I_from_EEPROM[var][4]][0]
@@ -584,7 +592,7 @@ void getMCUSR(void)
                                     /* uitgang aan */
                                     set_port(
                                         O_from_EEPROM[I_from_EEPROM[var][4]][1],
-                                        0x01);
+                                        0x01,O_from_EEPROM[I_from_EEPROM[var][4]][2]);
                                 }
                                 else if (
                                     O_from_EEPROM[I_from_EEPROM[var][4]][0]
@@ -593,7 +601,7 @@ void getMCUSR(void)
                                     /* uitgang togel */
                                     set_port(
                                         O_from_EEPROM[I_from_EEPROM[var][4]][1],
-                                        0x02);
+                                        0x02,0x00);
                                 }
                                 else if (
                                     O_from_EEPROM[I_from_EEPROM[var][4]][0]
@@ -606,6 +614,33 @@ void getMCUSR(void)
                                     == 0x04)
                                 {
                                     /* DAC-uitgang */
+                                }
+                                else if (
+                                    O_from_EEPROM[I_from_EEPROM[var][4]][0]
+                                    == 0x05)
+                                {
+                                    /* Timer uitgang uit in sec */
+                                    //pin-number = 0x??
+                                    //uit        = 0x00
+                                    //duur       = 0x01-0xff
+                                }
+                                else if (
+                                    O_from_EEPROM[I_from_EEPROM[var][4]][0]
+                                    == 0x06)
+                                {
+                                    /* Timer uitgang aan in sec */
+                                }
+                                else if (
+                                    O_from_EEPROM[I_from_EEPROM[var][4]][0]
+                                    == 0x07)
+                                {
+                                    /* Timer uitgang uit in minu */
+                                }
+                                else if (
+                                    O_from_EEPROM[I_from_EEPROM[var][4]][0]
+                                    == 0x08)
+                                {
+                                    /* Timer uitgang aan in minu */
                                 }
                             }
                         }
@@ -643,6 +678,7 @@ void getMCUSR(void)
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
                     MCP2515_message_TX();
+                    CAN_messag((0x600 | module_adres), 0x01, pin_nr+offset, 0);
                 }
             } else {
                 //was 0
@@ -664,6 +700,7 @@ void getMCUSR(void)
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
                     MCP2515_message_TX();
+                    CAN_messag((0x600 | module_adres), 0x01, pin_nr+offset, 1);
                 }
             }
         }
@@ -682,6 +719,8 @@ void getMCUSR(void)
              * 0x08 Watchdog
              * 0x10 JTAG
              */
+            uint8_t mcusr;
+            __asm__ __volatile__ ( "mov %0, r2 \n" : "=r" (mcusr) : );
             // int8_t Reset_caused_by = MCUSR;
             // MCUSR                  = 0x00; /* Reset the MCUSR */
             //uint8_t Reset_caused_by = GPIOR0; /* MCUSR from bootloader */
@@ -749,6 +788,31 @@ void getMCUSR(void)
 
             if(TCNT3>65000){
                 TCNT3=0;
+
+                //test uitput
+                uint8_t pin_nr=0;
+                for (;pin_nr<0xff;++pin_nr) {
+                    if(current_O[pin_nr][1]>0){
+                        //timer or pwm
+                        if(current_O[pin_nr][0]!=0x03)/* niet pwm */{
+                            --current_O[pin_nr][1];// verminder de duur
+                            if(current_O[pin_nr][1]==0){
+                                //mod pin
+                                if(current_O[pin_nr][0]==0x00){
+                                    //set uitgang aan
+                                    set_port(pin_nr,0x01,0x00);
+                                } else if (current_O[pin_nr][0]==0x01) {
+                                    //set uitgang uit
+                                    set_port(pin_nr,0x00,0x00);
+                                }
+                            }
+
+                        }
+                    }
+                }
+
+
+
                 ++Can_watchdog;
                 if(Can_watchdog>4){
                     CAN_TX_msg.id           = 0x1fe;
@@ -846,14 +910,16 @@ void getMCUSR(void)
                          * command  data_byte0 03
                          * number   data_byte1 00-ff
                          * toestand data_byte2 00-ff
+                         * data     data_byte3 00-ff
                          */
-                        if (CAN_RX_msg.length == 3)
+                        if (CAN_RX_msg.length == 4)
                         {
                             if (CAN_RX_msg.data_byte[0] == 0x03)
                             {
                                 set_port(
                                     CAN_RX_msg.data_byte[1],
-                                    CAN_RX_msg.data_byte[2]);
+                                    CAN_RX_msg.data_byte[2],
+                                    CAN_RX_msg.data_byte[3]);
                             }
                         }
                     }

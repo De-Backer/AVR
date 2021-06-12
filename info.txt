@@ -175,13 +175,22 @@ test EEPROM 2:
 I_from_EEPROM 0x64+5= 69
 01 / 02 00 69 : 05 01 00 00   =8 //Adres 5 command 1 number 0 toestand 0
 01 / 02 00 6d : 01            =5 //naam_output => O_from_EEPROM
-O_from_EEPROM 0x8c+3= 8f
+O_from_EEPROM 0x8c+3= 8f  !! het EEPROM adres is verkeert !!
 01 / 02 00 8c : 02 00 00      =7  // uitgang togel pin 0 data 0
 
 test send can:
 05 / 01 00 00                 =3 //Adres 5 command 1 number 0 toestand 1
 
+send to 05 bewegingsenort test       // het werkt
+cansend can0 405#01010064.05010001   //I_from_EEPROM bit 1-4
+cansend can0 405#01010068.00         //I_from_EEPROM bit 5
+cansend can0 405#0101055f.001014     //O_from_EEPROM bit 1-3
 
+cansend can0 405#01010069.05010101   //I_from_EEPROM bit 1-4
+cansend can0 405#0101006d.01         //I_from_EEPROM bit 5
+cansend can0 405#01010562.001114     //O_from_EEPROM bit 1-3
+
+cansend can0 405#01010069.ffffffff
 pointer        : data
 [naam_intput] : [Adres] [command] [number] [toestand] [naam_output]
 [naam_output] : [function] [PIN-number] [data]
@@ -202,11 +211,14 @@ toestand 0x00-0xff
 naam_output => is de pointer
 
 function
-- 00 uitgang uit
-- 01 uitgang aan
+- 00 Timer uitgang uit in sec
+- 01 Timer uitgang aan in sec
 - 02 uitgang togel
 - 03 PWM-uitgang
 - 04 DAC-uitgang
+- 05 Timer uitgang uit in minu
+- 06 Timer uitgang aan in minu
+
 PIN-number 0x00-0xff
 data       0x00-0xff
 
