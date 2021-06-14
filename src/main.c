@@ -805,7 +805,24 @@ extern "C"
                                     //set uitgang uit
                                     set_port(pin_nr,0x00,0x00);
                                 }
-                            }
+                            } else if (current_O[pin_nr][1]==1) {
+                                //zal uit gaan zend can
+                                CAN_TX_msg.id           = 0x600 | module_adres;
+                                CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                                CAN_TX_msg.rtr          = 0;
+                                CAN_TX_msg.length       = 4;
+                                CAN_TX_msg.data_byte[0] = 0x03; /* 1 uitgang */
+                                CAN_TX_msg.data_byte[1] = pin_nr;
+                                CAN_TX_msg.data_byte[2] = current_O[pin_nr][0];/* toestand */
+                                CAN_TX_msg.data_byte[3] = 0x01;/* duur */
+                                CAN_TX_msg.data_byte[4] = 0;
+                                CAN_TX_msg.data_byte[5] = 0;
+                                CAN_TX_msg.data_byte[6] = 0;
+                                CAN_TX_msg.data_byte[7] = 0;
+                                MCP2515_message_TX();
+
+
+}
 
                         }
                     }
