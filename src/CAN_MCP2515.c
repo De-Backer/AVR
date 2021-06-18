@@ -344,7 +344,7 @@ unsigned char MCP2515_message_TX(void)
         TXBnEID8 = 0x00;
         TXBnEID0 = 0x00;
 
-        if (CAN_TX_msg.rtr) { TXBnSIDL |= (1 << SRR); }
+        if (CAN_TX_msg.rtr) { TXBnDLC |= (1 << RTR); }
 
         break;
     }
@@ -359,7 +359,7 @@ unsigned char MCP2515_message_TX(void)
     spi_write(TXBnEID0);
     spi_write(TXBnDLC);
 
-    for (i = 0; i < TXBnDLC; i++) { spi_write(CAN_TX_msg.data_byte[i]); }
+    if (!CAN_TX_msg.rtr){for (i = 0; i < TXBnDLC; i++) { spi_write(CAN_TX_msg.data_byte[i]); }}
 
     MCP2515_UNSELECT();
 
