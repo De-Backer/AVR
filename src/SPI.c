@@ -21,6 +21,13 @@ uint8_t spi_readwrite(uint8_t data)
 {
     /* Start transmission */
     SPDR = data;
+    /*
+   * The following NOP introduces a small delay that can prevent the wait
+   * loop form iterating when running at the maximum speed. This gives
+   * about 10% more speed, even if it seems counter-intuitive. At lower
+   * speeds it is unnoticed.
+   */
+  __asm__ __volatile__ ("nop");
     while (! (SPSR & (1 << SPIF)))
         ; /* Wait for transmission complete */
     return SPDR;
@@ -30,6 +37,13 @@ void spi_write(uint8_t data)
 {
     /* Start transmission */
     SPDR = data;
+    /*
+   * The following NOP introduces a small delay that can prevent the wait
+   * loop form iterating when running at the maximum speed. This gives
+   * about 10% more speed, even if it seems counter-intuitive. At lower
+   * speeds it is unnoticed.
+   */
+  __asm__ __volatile__ ("nop");
     while (! (SPSR & (1 << SPIF)))
         ; /* Wait for transmission complete */
 }
@@ -38,6 +52,13 @@ uint8_t spi_read()
 {
     /* Start transmission */
     SPDR = 0x00;
+    /*
+   * The following NOP introduces a small delay that can prevent the wait
+   * loop form iterating when running at the maximum speed. This gives
+   * about 10% more speed, even if it seems counter-intuitive. At lower
+   * speeds it is unnoticed.
+   */
+  __asm__ __volatile__ ("nop");
     while (! (SPSR & (1 << SPIF)))
         ; /* Wait for transmission complete */
     return SPDR;
