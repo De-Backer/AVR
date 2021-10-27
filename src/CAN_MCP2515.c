@@ -8,7 +8,7 @@ void MCP2515_init(void)
     SPI_DDR_CAN |= (0x01 << SPI_CS_CAN);   /* output */
     SPI_PORT_CAN &= ~(0x01 << SPI_CS_CAN); /* laag */
 
-    INT_DDR_CAN |= (0x01 << INT_CAN);  /* intput */
+    INT_DDR_CAN &= ~(0x01 << INT_CAN);  /* input */
     INT_PORT_CAN |= (0x01 << INT_CAN); /* pul-up */
 
     //    _delay_ms(10);
