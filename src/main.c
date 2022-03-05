@@ -58,7 +58,7 @@ extern "C"
 //}
 
 /* CAN to EEPROM
- * config        0x04
+ * config        CAN_Priority_config
  * module adres  0x00 - 0xff
  * Frame and rtr 0x00
  * length        0x05 - 0x08
@@ -82,13 +82,13 @@ extern "C"
  *  -I_max_block
  *  -O_max_block
  */
-/* 0x04 [module_adres] 0x00 0x00 0x06
- *                0x01 0x02 0x00 0x00 <-- EE_MICROCONTROLLER_ID
+/* CAN_Priority_config [module_adres] 0x00 0x00 0x06
+ *                                    0x01 0x02 0x00 0x00 <-- EE_MICROCONTROLLER_ID
  *                microcontroller_id_H
  *                microcontroller_id_L
  *
- * 0x04 [module_adres] 0x00 0x00 0x05
- *                0x01 0x02 0x00 0x02 <-- EE_MODULE_ADRES
+ * CAN_Priority_config [module_adres] 0x00 0x00 0x05
+ *                               0x01 0x02 0x00 0x02 <-- EE_MODULE_ADRES
  *                module_adres
  */
 
@@ -96,8 +96,8 @@ extern "C"
 #define EE_MICROCONTROLLER_ID 0 /* 16 bit */
 #define EE_MODULE_ADRES       2
 
-    uint16_t microcontroller_id = 0x0000; // default
-    uint8_t  module_adres       = 0x00;   // default
+    static uint16_t microcontroller_id = 0x0000; // default
+    static uint8_t  module_adres       = 0x00;   // default
     /* ?? => microcontroller_id == 0x0000
      *  yes can stuurt naar id 0 van id 0
      *  de µc die stuurt luistert niet naar zijn eigen bericht!
@@ -107,7 +107,7 @@ extern "C"
 #if defined(__AVR_ATmega1284P__)
 
 #    define MICROCONTROLLER_TYPE 0x01
-#    define PROTOCOL_VERSIE      0x00
+#    define PROTOCOL_VERSIE      0x01
 
 /* 0x04 [module_adres] 0x00 0x00 0x08
  *                0x01 0x02 0x00 0x03 <-- EE_MICROCONTROLLER_DDRA
@@ -132,7 +132,29 @@ extern "C"
 #    define EE_MICROCONTROLLER_PORTB 8
 #    define EE_MICROCONTROLLER_PORTC 9
 #    define EE_MICROCONTROLLER_PORTD 10
-
+/* Pinout ATmega1284P
+ *        | \__/ |
+ * 08 PB0-| 1  40|-PA0 00
+ * 09 PB1-| 2  39|-PA1 01
+ * 0a PB2-| 3  38|-PA2 02
+ * 0b PB3-| 4  37|-PA3 03
+ * 0c PB4-| 5  36|-PA4 04
+ * 0d PB5-| 6  35|-PA5 05
+ * 0e PB6-| 7  34|-PA6 06
+ * 0f PB7-| 8  33|-PA7 07
+ * Reset -| 9  32|-Aref
+ * VCC   -|10  31|-GND
+ * GND   -|11  30|-AVCC
+ * XTAL2 -|12  29|-PC7 17
+ * XTAL1 -|13  28|-PC6 16
+ * 18 PD0-|14  27|-PC5 15
+ * 19 PD1-|15  26|-PC4 14
+ * 1a PD2-|16  25|-PC3 13
+ * 1b PD3-|17  24|-PC2 12
+ * 1c PD4-|18  23|-PC1 11
+ * 1d PD5-|19  22|-PC0 10
+ * 1e PD6-|20  21|-PD7 1f
+*/
 #    define EE_EXTENDED_DDR0A 11
 #    define EE_EXTENDED_DDR0B 12
 #    define EE_EXTENDED_DDR1A 13
@@ -170,8 +192,63 @@ extern "C"
 #    define EE_EXTENDED_PORT_7B 45
 #    define EE_EXTENDED_PORT_8A 46
 #    define EE_EXTENDED_PORT_8B 47
+    /* de all_of functie
+     * - masker die de uitgangen "all off" bepaald
+     * - toestand waardat de uitgang moet zijn (0 of 1)
+     * bv 1:
+     * PortA |=(EE_all_of_E_MICROCONTROLLER_PORTA && EE_all_of_MICROCONTROLLER_PORTA);
+     * bv 0:
+     * PortA &=(EE_all_of_E_MICROCONTROLLER_PORTA && ~EE_all_of_MICROCONTROLLER_PORTA);
+     *
+     */
+#    define EE_all_of_E_MICROCONTROLLER_PORTA 48
+#    define EE_all_of_E_MICROCONTROLLER_PORTB 49
+#    define EE_all_of_E_MICROCONTROLLER_PORTC 50
+#    define EE_all_of_E_MICROCONTROLLER_PORTD 51
+#    define EE_all_of_E_EXTENDED_PORT_0A 52
+#    define EE_all_of_E_EXTENDED_PORT_0B 53
+#    define EE_all_of_E_EXTENDED_PORT_1A 54
+#    define EE_all_of_E_EXTENDED_PORT_1B 55
+#    define EE_all_of_E_EXTENDED_PORT_2A 56
+#    define EE_all_of_E_EXTENDED_PORT_2B 57
+#    define EE_all_of_E_EXTENDED_PORT_3A 58
+#    define EE_all_of_E_EXTENDED_PORT_3B 59
+#    define EE_all_of_E_EXTENDED_PORT_4A 60
+#    define EE_all_of_E_EXTENDED_PORT_4B 61
+#    define EE_all_of_E_EXTENDED_PORT_5A 62
+#    define EE_all_of_E_EXTENDED_PORT_5B 63
+#    define EE_all_of_E_EXTENDED_PORT_6A 64
+#    define EE_all_of_E_EXTENDED_PORT_6B 65
+#    define EE_all_of_E_EXTENDED_PORT_7A 66
+#    define EE_all_of_E_EXTENDED_PORT_7B 67
+#    define EE_all_of_E_EXTENDED_PORT_8A 68
+#    define EE_all_of_E_EXTENDED_PORT_8B 69
+
+#    define EE_all_of_MICROCONTROLLER_PORTA 70
+#    define EE_all_of_MICROCONTROLLER_PORTB 71
+#    define EE_all_of_MICROCONTROLLER_PORTC 72
+#    define EE_all_of_MICROCONTROLLER_PORTD 73
+#    define EE_all_of_EXTENDED_PORT_0A 74
+#    define EE_all_of_EXTENDED_PORT_0B 75
+#    define EE_all_of_EXTENDED_PORT_1A 76
+#    define EE_all_of_EXTENDED_PORT_1B 77
+#    define EE_all_of_EXTENDED_PORT_2A 78
+#    define EE_all_of_EXTENDED_PORT_2B 79
+#    define EE_all_of_EXTENDED_PORT_3A 80
+#    define EE_all_of_EXTENDED_PORT_3B 81
+#    define EE_all_of_EXTENDED_PORT_4A 82
+#    define EE_all_of_EXTENDED_PORT_4B 83
+#    define EE_all_of_EXTENDED_PORT_5A 84
+#    define EE_all_of_EXTENDED_PORT_5B 85
+#    define EE_all_of_EXTENDED_PORT_6A 86
+#    define EE_all_of_EXTENDED_PORT_6B 87
+#    define EE_all_of_EXTENDED_PORT_7A 88
+#    define EE_all_of_EXTENDED_PORT_7B 89
+#    define EE_all_of_EXTENDED_PORT_8A 90
+#    define EE_all_of_EXTENDED_PORT_8B 91
+
     /* Start reset => new IO laden
-     * 0x04 [module_adres]  0x00  0x00  0x02 0x04 0x04
+     * CAN_Priority_config [module_adres]  0x00  0x00  0x02 0x04 0x04
      */
 
     /* CAN to out:
@@ -205,17 +282,39 @@ extern "C"
 #    define EE_IO_block 100 // 0x64
 #    define I_max_block 0xff // 0x64 + I_max_block * 5 = ofset for O_from_EEPROM
 #    define O_max_block 0xff
-    uint8_t I_from_EEPROM[I_max_block][5]; // [0--255] [Adres / command / number
+    static uint8_t I_from_EEPROM[I_max_block][5]; // [0--255] [Adres / command / number
                                            // / toestand / naam_output]
-    uint8_t O_from_EEPROM[O_max_block]
+    static uint8_t O_from_EEPROM[O_max_block]
                          [3]; // [naam_output] [function / PIN-number / data]
-    uint8_t current_O[O_max_block][2];// [PIN-number] [function / data]
+    static uint8_t current_O[O_max_block][2];// [PIN-number] [function / data]
 #else
 #    warning "device type not defined"
 #endif
 
+#if PROTOCOL_VERSIE==0x00
+#   define CAN_Priority_High_reserve 0x000
+#   define CAN_Priority_global       0x100
+#   define CAN_Priority_High         0x200
+#   define CAN_Priority_USART1       0x300
+#   define CAN_Priority_config       0x400
+#   define CAN_Priority_set          0x500
+#   define CAN_Priority_normale      0x600
+#   define CAN_Priority_reserve      0x700
+#elif PROTOCOL_VERSIE==0x01
+#   define CAN_Priority_High_reserve 0x000
+#   define CAN_Priority_global       0x100
+#   define CAN_Priority_High         0x200
+#   define CAN_Priority_High_USART1  0x300
+#   define CAN_Priority_set          0x400
+#   define CAN_Priority_normale      0x500
+#   define CAN_Priority_USART1       0x600
+#   define CAN_Priority_config       0x700
+#else
+#    warning "PROTOCOL_VERSIE not defined"
+#endif
+
     /* Configuring the Pin */
-    void init_io()
+    static void init_io()
     {
         if (module_adres == 0xff)
         {
@@ -250,7 +349,7 @@ extern "C"
         PORTD = eeprom_read_byte((uint8_t*) EE_MICROCONTROLLER_PORTD);
     }
 
-    void CAN_echo_id_Adres(uint8_t data1, uint8_t data2)
+    static void CAN_echo_id_Adres(uint8_t data1, uint8_t data2)
     {
         /* info Microcontroller can */
 
@@ -271,7 +370,7 @@ extern "C"
         MCP2515_message_TX();
     }
 
-    void USART_echo_id_Adres(uint8_t data1, uint8_t data2)
+    static void USART_echo_id_Adres(uint8_t data1, uint8_t data2)
     {
         /* info Microcontroller can */
 
@@ -300,9 +399,9 @@ extern "C"
         Transmit_USART0(data2);
     }
 
-    void set_port(uint8_t uitgang, uint8_t state, uint8_t duur)
+    static void set_port(uint8_t uitgang, uint8_t state, uint8_t duur)
     {
-        CAN_TX_msg.id           = 0x600 | module_adres;
+        CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
         CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
         CAN_TX_msg.rtr          = 0;
         CAN_TX_msg.length       = 4;
@@ -332,7 +431,7 @@ extern "C"
                 PORTA &= ~(1 << uitgang);
             }
         }
-        else if (uitgang < 0x0F) /* PORT B */
+        else if (uitgang < 0x10) /* PORT B */
         {
             uitgang -= 0x08;
             if (state == 0x01) { PORTB |= (1 << uitgang); }
@@ -360,7 +459,7 @@ extern "C"
                 PORTC &= ~(1 << uitgang);
             }
         }
-        else if (uitgang < 0x1F) /* PORT D */
+        else if (uitgang < 0x20) /* PORT D */
         {
             uitgang -= 0x18;
             if (state == 0x01) { PORTD |= (1 << uitgang); }
@@ -387,7 +486,7 @@ extern "C"
         MCP2515_message_TX();
     }
 
-    void build_can_block()
+    static void build_can_block()
     {
         if (RingBuffer_Peek(&RX_Buffer) == 0x0A) /* new line */
         {
@@ -419,7 +518,7 @@ extern "C"
         }
     }
 
-    void build_RAM_IO_from_EEPROM()
+    static void build_RAM_IO_from_EEPROM()
     {
         wdt_disable(); /* Stop Watchdog Reset */
 
@@ -449,7 +548,7 @@ extern "C"
         wdt_enable(WDTO_250MS); /* Watchdog Reset after 250mSec */
     }
 
-    void CAN_EEPROM()
+    static void CAN_EEPROM()
     {
         //        Transmit_USART0(10); /* new line */
         //        char* Buffer = "- EEPROM -";
@@ -471,7 +570,7 @@ extern "C"
             temp[2] = 0;
             temp[3] = 0;
             eeprom_read_block((void*) temp, (const void*) ee_adres, length);
-            CAN_TX_msg.id           = (0x400 | module_adres);
+            CAN_TX_msg.id           = (CAN_Priority_config | module_adres);
             CAN_TX_msg.ext_id       = 0;
             CAN_TX_msg.rtr          = 0;
             CAN_TX_msg.length       = length + 4;
@@ -513,7 +612,7 @@ extern "C"
             temp[2] = 0;
             temp[3] = 0;
             eeprom_read_block((void*) temp, (const void*) ee_adres, length);
-            CAN_TX_msg.id           = (0x400 | module_adres);
+            CAN_TX_msg.id           = (CAN_Priority_config | module_adres);
             CAN_TX_msg.ext_id       = 0;
             CAN_TX_msg.rtr          = 0;
             CAN_TX_msg.length       = length + 4;
@@ -561,7 +660,7 @@ extern "C"
         }
     }
 
-    void CAN_messag(
+    static void CAN_messag(
         uint8_t module, uint8_t command, uint8_t number, uint8_t toestand)
     {
         uint8_t var = 0;
@@ -650,7 +749,7 @@ extern "C"
         }
     }
 
-    uint8_t input_pol(uint8_t input,uint8_t vpin,uint8_t offset)
+    static uint8_t input_pol(uint8_t input,uint8_t vpin,uint8_t offset)
     {
         uint8_t set_V_input=vpin;
         uint8_t pin_nr=0x00;
@@ -665,7 +764,7 @@ extern "C"
                     set_V_input&=~(0x01<<pin_nr);
 
                     //send pin
-                    CAN_TX_msg.id           = 0x600 | module_adres;
+                    CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
                     CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
                     CAN_TX_msg.rtr          = 0;
                     CAN_TX_msg.length       = 3;
@@ -678,7 +777,7 @@ extern "C"
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
                     MCP2515_message_TX();
-                    CAN_messag((0x600 | module_adres), 0x01, pin_nr+offset, 0);
+                    CAN_messag((CAN_Priority_normale | module_adres), 0x01, pin_nr+offset, 0);//echo to self
                 }
             } else {
                 //was 0
@@ -687,7 +786,7 @@ extern "C"
                     set_V_input|=(0x01<<pin_nr);
 
                     //send pin
-                    CAN_TX_msg.id           = 0x600 | module_adres;
+                    CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
                     CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
                     CAN_TX_msg.rtr          = 0;
                     CAN_TX_msg.length       = 3;
@@ -700,7 +799,7 @@ extern "C"
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
                     MCP2515_message_TX();
-                    CAN_messag((0x600 | module_adres), 0x01, pin_nr+offset, 1);
+                    CAN_messag((CAN_Priority_normale | module_adres), 0x01, pin_nr+offset, 1);//echo to self
                 }
             }
         }
@@ -716,14 +815,16 @@ extern "C"
              * 0x01 Power-on
              * 0x02 External
              * 0x04 Brown-out
+             * 0x05 Brown-out + Power-on
+             * 0x06 Brown-out + External
+             * 0x07 Brown-out + External + Power-on
              * 0x08 Watchdog
              * 0x10 JTAG
              */
             uint8_t mcusr;
-            __asm__ __volatile__ ( "mov %0, r2 \n" : "=r" (mcusr) : );
+            __asm__ __volatile__ ( "mov %0, r2 \n" : "=r" (mcusr) : );/* MCUSR from bootloader */
             // int8_t Reset_caused_by = MCUSR;
             // MCUSR                  = 0x00; /* Reset the MCUSR */
-            //uint8_t Reset_caused_by = GPIOR0; /* MCUSR from bootloader */
 
             /* init */
             microcontroller_id =
@@ -757,6 +858,25 @@ extern "C"
 
         build_RAM_IO_from_EEPROM();
 
+        /* adc */
+        /* DIDR0 – Digital Input Disable Register 0 */
+        DIDR0 = 0xff;
+
+        /* ADC Multiplexer Selection Register */
+            /* ADLAR ADC Left Adjust Result */
+            ADMUX = (0x01 << ADLAR);
+            /*AVCC with external capacitor at AREF pin */
+            ADMUX |=(0x01 << REFS0);
+
+        /* ADC Control and Status Register A */
+            /* ADPS2:0: ADC Prescaler Select Bits 156.25KHz sample rate @ 20MHz */
+            ADCSRA = (0x01 << ADPS2) | (0x01 << ADPS1) | (0x01 << ADPS0);
+            /* ADEN: ADC Enable */
+            ADCSRA |= (0x01 << ADEN);
+            /* Start Conversion */
+            ADCSRA |= (0x01 << ADSC);
+        uint8_t v_adc_pin[8];
+
         wdt_enable(WDTO_250MS); /* Watchdog Reset after 250mSec */
 
         /* Can Watchdog Timer3 */
@@ -771,6 +891,33 @@ extern "C"
         uint8_t v_pinB = (PINB & ~DDRB);
         uint8_t v_pinC = (PINC & ~DDRC);
         uint8_t v_pinD = (PIND & ~DDRD);
+        v_pinA=input_pol(v_pinA,~v_pinA, 0x00);
+        v_pinB=input_pol(v_pinB,~v_pinB, 0x08);
+        v_pinC=input_pol(v_pinC,~v_pinC, 0x10);
+        v_pinD=input_pol(v_pinD,~v_pinD, 0x18);
+
+        /* output zet op de can bus bij opstart */
+        uint8_t output=0;
+        for (uint8_t pin_nr=0;pin_nr<0x08;++pin_nr,++output) {
+            if(0x01&&(DDRA<<pin_nr))/* is een output */
+                set_port(output,0x01&&(PORTA<<pin_nr),0);
+        }
+        wdt_reset(); /* Reset Watchdog timer*/
+        for (uint8_t pin_nr=0;pin_nr<0x08;++pin_nr,++output) {
+            if(0x01&&(DDRB<<pin_nr))
+                set_port(output,0x01&&(PORTB<<pin_nr),0);
+        }
+        wdt_reset(); /* Reset Watchdog timer*/
+        for (uint8_t pin_nr=0;pin_nr<0x08;++pin_nr,++output) {
+            if(0x01&&(DDRC<<pin_nr))
+                set_port(output,0x01&&(PORTC<<pin_nr),0);
+        }
+        wdt_reset(); /* Reset Watchdog timer*/
+        for (uint8_t pin_nr=0;pin_nr<0x08;++pin_nr,++output) {
+            if(0x01&&(DDRD<<pin_nr))
+                set_port(output,0x01&&(PORTD<<pin_nr),0);
+        }
+        wdt_reset(); /* Reset Watchdog timer*/
         for (;;)
         {
             /* loop */;
@@ -783,11 +930,62 @@ extern "C"
                 v_pinA=input_pol((PINA&~DDRA), v_pinA, 0x00);
                 v_pinB=input_pol((PINB&~DDRB), v_pinB, 0x08);
                 v_pinC=input_pol((PINC&~DDRC), v_pinC, 0x10);
-                v_pinD=input_pol((PIND&~DDRD), v_pinD, 0x18);
+                uint8_t masker=(~DDRD);
+                if(1){
+                    masker&=(~0x04);
+                }
+                v_pinD=input_pol((PIND&masker), v_pinD, 0x18);
+
+                uint8_t adc_var=ADCH;
+                uint8_t adc_pin_nr=(0x07 & ADMUX);
+                if(v_adc_pin[adc_pin_nr]<adc_var){
+                    if((adc_var-v_adc_pin[adc_pin_nr])>1){
+
+                        v_adc_pin[adc_pin_nr]=adc_var;
+                        CAN_TX_msg.id           = (CAN_Priority_normale | module_adres);
+                        CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                        CAN_TX_msg.rtr          = 0;
+                        CAN_TX_msg.length       = 3;
+                        CAN_TX_msg.data_byte[0] = 0x02;
+                        CAN_TX_msg.data_byte[1] = adc_pin_nr;
+                        CAN_TX_msg.data_byte[2] = adc_var;
+                        CAN_TX_msg.data_byte[3] = 0;
+                        CAN_TX_msg.data_byte[4] = 0;
+                        CAN_TX_msg.data_byte[5] = 0;
+                        CAN_TX_msg.data_byte[6] = 0;
+                        CAN_TX_msg.data_byte[7] = 0;
+                        MCP2515_message_TX();
+                    }
+                } else if (v_adc_pin[adc_pin_nr]>adc_var) {
+                    if((v_adc_pin[adc_pin_nr]-adc_var)>1){
+
+                        v_adc_pin[adc_pin_nr]=adc_var;
+                        CAN_TX_msg.id           = (CAN_Priority_normale | module_adres);
+                        CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                        CAN_TX_msg.rtr          = 0;
+                        CAN_TX_msg.length       = 3;
+                        CAN_TX_msg.data_byte[0] = 0x02;
+                        CAN_TX_msg.data_byte[1] = adc_pin_nr;
+                        CAN_TX_msg.data_byte[2] = adc_var;
+                        CAN_TX_msg.data_byte[3] = 0;
+                        CAN_TX_msg.data_byte[4] = 0;
+                        CAN_TX_msg.data_byte[5] = 0;
+                        CAN_TX_msg.data_byte[6] = 0;
+                        CAN_TX_msg.data_byte[7] = 0;
+                        MCP2515_message_TX();
+                    }
+                }
+
+                ++adc_pin_nr;
+                if(adc_pin_nr>7){adc_pin_nr=0;}
+                adc_pin_nr &= 0x07;
+                adc_pin_nr |= (ADMUX & 0xe0); //0b11100000
+                ADMUX = adc_pin_nr;
+                /* Start Conversion */
+                ADCSRA |= (0x01 << ADSC);
             }
 
             if(TCNT3>65000){
-                TCNT3=0;
 
                 //test uitput
                 uint8_t pin_nr=0;
@@ -807,7 +1005,7 @@ extern "C"
                                 }
                             } else if (current_O[pin_nr][1]==1) {
                                 //zal uit gaan zend can
-                                CAN_TX_msg.id           = 0x600 | module_adres;
+                                CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
                                 CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
                                 CAN_TX_msg.rtr          = 0;
                                 CAN_TX_msg.length       = 4;
@@ -820,23 +1018,18 @@ extern "C"
                                 CAN_TX_msg.data_byte[6] = 0;
                                 CAN_TX_msg.data_byte[7] = 0;
                                 MCP2515_message_TX();
-
-
-}
-
+                            }
                         }
                     }
                 }
 
-
-
                 ++Can_watchdog;
                 if(Can_watchdog>4){
-                    CAN_TX_msg.id           = 0x1fe;
+                    CAN_TX_msg.id           = 0x111;
                     CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
-                    CAN_TX_msg.rtr          = 0;
-                    CAN_TX_msg.length       = 1;
-                    CAN_TX_msg.data_byte[0] = module_adres;
+                    CAN_TX_msg.rtr          = 1;
+                    CAN_TX_msg.length       = 0;
+                    CAN_TX_msg.data_byte[0] = 0;
                     CAN_TX_msg.data_byte[1] = 0;
                     CAN_TX_msg.data_byte[2] = 0;
                     CAN_TX_msg.data_byte[3] = 0;
@@ -847,9 +1040,31 @@ extern "C"
                     MCP2515_message_TX();
                 }
                 if(Can_watchdog>10){/* 1 ≃~ 3sec*/
+
+                    CAN_TX_msg.id           = (CAN_Priority_config | module_adres);
+                    CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                    CAN_TX_msg.rtr          = 0;
+                    CAN_TX_msg.length       = 8;
+                    CAN_TX_msg.data_byte[0] = 0x00;
+                    CAN_TX_msg.data_byte[1] = 0x00;
+                    CAN_TX_msg.data_byte[2] = Can_watchdog;
+                    CAN_TX_msg.data_byte[3] = MCP2515_check_for_incoming_message();
+                    CAN_TX_msg.data_byte[4] = MCP2515_message_RX();
+                    CAN_TX_msg.data_byte[5] = 0;
+                    CAN_TX_msg.data_byte[6] = 0;
+                    CAN_TX_msg.data_byte[7] = 0;
+                    MCP2515_message_TX();
+
+                    /* 0x40 => deze µc word gereset */
+                    CAN_echo_id_Adres(0x40, 0x40);
+                    USART_echo_id_Adres(0x40, 0x40);
+
                     wdt_enable(WDTO_15MS);/* reset MCU */
+
                     for (;;){}
                 }
+
+                TCNT3=0;
             }
             wdt_reset(); /* Reset Watchdog timer*/
             Receive_USART0();
@@ -865,16 +1080,14 @@ extern "C"
                      /* Reset Watchdog timer can */
                     Can_watchdog=0;
 
-                    /* 1 global */
+                    /*  global */
                     if (CAN_RX_msg.id == 0x1ff)
                     {
                         CAN_echo_id_Adres(0x00, 0x00);
                     }
 
-                    /* 3 reserve */
-
-                    /* 4 config */
-                    else if (CAN_RX_msg.id == (0x400 | module_adres))
+                    /*  config */
+                    else if (CAN_RX_msg.id == (CAN_Priority_config | module_adres))
                     {
                         if (CAN_RX_msg.data_byte[0] == 0x01) /* EEPROM */
                         {
@@ -919,8 +1132,8 @@ extern "C"
                         }
                     }
 
-                    /* 5 set */
-                    else if (CAN_RX_msg.id == (0x500 | module_adres))
+                    /* set */
+                    else if (CAN_RX_msg.id == (CAN_Priority_set | module_adres))
                     {
                         /* start van protocol
                          * µc   ID 5       01
@@ -940,7 +1153,6 @@ extern "C"
                             }
                         }
                     }
-                    /* 7 reserve */
 
                     /* extended */
                     else if (CAN_RX_msg.id == (0x02000000 | microcontroller_id))
@@ -978,27 +1190,59 @@ extern "C"
                         }
                     }
 
-                    /* 2 High */
-                    /* 6 normale */
+                    /* High */
+                    /* normale */
                     else if (
-                        ((CAN_RX_msg.id & 0xffffff00) == 0x200)
-                        || ((CAN_RX_msg.id & 0xffffff00) == 0x600))
+                        ((CAN_RX_msg.id & 0xffffff00) == CAN_Priority_High)
+                        || ((CAN_RX_msg.id & 0xffffff00) == CAN_Priority_normale))
                     {
-                        /* test CAN id on list */
-                        /* filter module_adres*/
-                        if (CAN_RX_msg.length > 2)
+                        if(((CAN_RX_msg.id & 0x000000ff) == module_adres))
                         {
-                            CAN_messag(
-                                (CAN_RX_msg.id & 0x000000ff),
-                                CAN_RX_msg.data_byte[0],
-                                CAN_RX_msg.data_byte[1],
-                                CAN_RX_msg.data_byte[2]);
-                        }
-                        else
-                        {
-                            Transmit_USART0(10); /* new line */
-                            char* Buffer = "! CAN length < 3 -" DEBUG;
-                            while (*Buffer) { Transmit_USART0(*Buffer++); }
+                            /* Remote Frame */
+                            CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
+                            CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                            CAN_TX_msg.rtr          = 0;
+                            CAN_TX_msg.length       = 5;
+                            CAN_TX_msg.data_byte[0] = 0x05; /* alle ingangen */
+                            CAN_TX_msg.data_byte[1] = PINA;
+                            CAN_TX_msg.data_byte[2] = PINB;
+                            CAN_TX_msg.data_byte[3] = PINC;
+                            CAN_TX_msg.data_byte[4] = PIND;
+                            CAN_TX_msg.data_byte[5] = 0;
+                            CAN_TX_msg.data_byte[6] = 0;
+                            CAN_TX_msg.data_byte[7] = 0;
+                            MCP2515_message_TX();
+                            CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
+                            CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                            CAN_TX_msg.rtr          = 0;
+                            CAN_TX_msg.length       = 5;
+                            CAN_TX_msg.data_byte[0] = 0x06; /* alle uitgangen */
+                            CAN_TX_msg.data_byte[1] = PORTA;
+                            CAN_TX_msg.data_byte[2] = PORTB;
+                            CAN_TX_msg.data_byte[3] = PORTC;
+                            CAN_TX_msg.data_byte[4] = PORTD;
+                            CAN_TX_msg.data_byte[5] = 0;
+                            CAN_TX_msg.data_byte[6] = 0;
+                            CAN_TX_msg.data_byte[7] = 0;
+                            MCP2515_message_TX();
+
+                        } else {
+                            /* test CAN id on list */
+                            /* filter module_adres */
+                            if (CAN_RX_msg.length > 2)
+                            {
+                                CAN_messag(
+                                    (CAN_RX_msg.id & 0x000000ff),
+                                    CAN_RX_msg.data_byte[0],
+                                    CAN_RX_msg.data_byte[1],
+                                    CAN_RX_msg.data_byte[2]);
+                            }
+                            else
+                            {
+                                Transmit_USART0(10); /* new line */
+                                char* Buffer = "! CAN length < 3 -" DEBUG;
+                                while (*Buffer) { Transmit_USART0(*Buffer++); }
+                            }
                         }
                     }
 

@@ -46,11 +46,11 @@ ID-normal 11bit
         0x0mm - 000 _______reserve
         0x1mm - 001 global         / global function
         0x2mm - 010 High           / module adres 01-FE
-        0x3mm - 011 _______reserve
-        0x4mm - 100 config         / module adres 01-FE
-        0x5mm - 101 set            / module adres 01-FE
-        0x6mm - 110 normale        / module adres 01-FE
-        0x7mm - 111 _______reserve
+        0x3mm - 011 High USART1    / module adres 01-FE
+        0x4mm - 100 set            / module adres 01-FE
+        0x5mm - 101 normale        / module adres 01-FE
+        0x6mm - 110 USART1         / module adres 01-FE
+        0x7mm - 111 config
 ________________________________________________
 Priority
 - global
@@ -104,11 +104,11 @@ Priority
 
   command 1 (extended) ingang/uitgang data block
   data 1 : number   00-FF
-            PIN/PORT A /or extended 0-7
-            PIN/PORT B /or extended 8-15
-            PIN/PORT C /or extended 16-23
-            PIN/PORT D /or extended 24-31
-            PIN/PORT E /or extended 32-39
+            PIN/PORT A /or extended 0-7   00-07
+            PIN/PORT B /or extended 8-15  08-0f
+            PIN/PORT C /or extended 16-23 10-17
+            PIN/PORT D /or extended 24-31 18-1f
+            PIN/PORT E /or extended 32-39 20-27
             PIN/PORT F /or extended 40-47
             PIN/PORT G /or extended 48-55
             PIN/PORT H /or extended 56-63
@@ -151,7 +151,7 @@ Priority
            - 01 read
            - 02 update & read
            - 03 (echo) zend de µc bij read and update
-	   - 04    nu reseten
+           - 04    nu reseten
   data 2 : data-adres H
   data 3 : data-adres L
   data 4 : data blok ----| a
@@ -179,18 +179,26 @@ O_from_EEPROM 0x8c+3= 8f  !! het EEPROM adres is verkeert !!
 01 / 02 00 8c : 02 00 00      =7  // uitgang togel pin 0 data 0
 
 test send can:
-05 / 01 00 00                 =3 //Adres 5 command 1 number 0 toestand 1
+15 / 01 00 00                 =3 //Adres 15 command 1 number 0 toestand 1
 
-send to 05 bewegingsenort test       // het werkt
-cansend can0 405#01010064.05010001   //I_from_EEPROM bit 1-4
-cansend can0 405#01010068.00         //I_from_EEPROM bit 5
-cansend can0 405#0101055f.001014     //O_from_EEPROM bit 1-3
+send to 15 bewegingsenort test       // het werkt
+cansend can0 415#01010064.15010001   //I_from_EEPROM bit 1-4
+cansend can0 415#01010064.15011701   //I_from_EEPROM bit 1-4 <=nu C7
+cansend can0 415#01010068.00         //I_from_EEPROM bit 5
+cansend can0 415#0101055f.0010ff     //O_from_EEPROM bit 1-3
 
-cansend can0 405#01010069.05010101   //I_from_EEPROM bit 1-4
-cansend can0 405#0101006d.01         //I_from_EEPROM bit 5
-cansend can0 405#01010562.001114     //O_from_EEPROM bit 1-3
 
-cansend can0 405#01010069.ffffffff
+cansend can0 415#01010069.15010101   //I_from_EEPROM bit 1-4
+cansend can0 415#01010069.15011601   //I_from_EEPROM bit 1-4 <=nu C6
+cansend can0 415#0101006d.01         //I_from_EEPROM bit 5
+cansend can0 415#01010562.001114     //O_from_EEPROM bit 1-3
+
+cansend can0 415#0101006e.15010101   //I_from_EEPROM bit 1-4
+cansend can0 415#0101006e.15011701   //I_from_EEPROM bit 1-4 <=nu C7
+cansend can0 415#01010072.02         //I_from_EEPROM bit 5
+cansend can0 415#01010565.001014     //O_from_EEPROM bit 1-3
+
+cansend can0 415#01010069.ffffffff
 pointer        : data
 [naam_intput] : [Adres] [command] [number] [toestand] [naam_output]
 [naam_output] : [function] [PIN-number] [data]
@@ -231,7 +239,7 @@ ________________|_____________________________
 toestand ---+ +---+--- naam_output
 number ---+ | | | |  +--- function
 command + | | | | |  | + PIN-number
-Adres + | | | | | |  | | +--- data (niet gebruikt)
+Adres + | | | | | |  | | +--- data
       | | | | | | |  | | |
       5 1 0 0 0 | 0  0 0 0 ; port A.0 0
       5 1 0 1 1 | 1  2 1 0 ; port A.1 togel
@@ -239,7 +247,16 @@ Adres + | | | | | |  | | +--- data (niet gebruikt)
       5 1 6 1 1 |
       4 1 F 1 1
 
+- set
+    module adres 01-FE
+    data 0 : command
+             - 03 set port
+    data 1 : number 00-FF (uitgang)
+    data 2 : toestand   (state)
+    data 3 : data       (duur)
 
+test send can:
+cansend can0 515#031000ff    //Adres 15 command 03 number 10 toestand 00 duur ff(12min)
 _______________________________________________________________________________________
 opensuse => canutils
 r pi     => can-utils
