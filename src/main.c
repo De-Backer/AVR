@@ -34,6 +34,7 @@ extern "C"
 {
 #endif
 
+#include "../include/IO_MCP23S17.h"
 #include "../include/CAN_MCP2515.h"
 #include "../include/SPI.h"
 #include "../include/usart.h"

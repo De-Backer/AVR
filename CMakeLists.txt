@@ -17,6 +17,13 @@ include(cmake/avr_pre.cmake)
 
 add_library(USART src/usart.c include/usart.h)
 
+#IO_MCP23S17
+add_definitions(-DSPI_DDR_IO=DDRB)
+add_definitions(-DSPI_PORT_IO=PORTB)
+add_definitions(-DSPI_CS_IO=0)
+
+add_library(IO_MCP23S17 src/IO_MCP23S17.c include/IO_MCP23S17.h)
+
 #CAN_MCP2515
 add_definitions(-DSPI_DDR_CAN=DDRB)
 add_definitions(-DSPI_PORT_CAN=PORTB)
@@ -37,7 +44,7 @@ add_library(BUFFER src/RingBuffer.c include/RingBuffer.h)
 # Create one target
 add_executable(AVR src/main.c)
 
-target_link_libraries(AVR PRIVATE USART BUFFER CAN_MCP2515 SPI)
+target_link_libraries(AVR PRIVATE USART BUFFER IO_MCP23S17 CAN_MCP2515 SPI)
 
 include(cmake/avr_post.cmake)
 
