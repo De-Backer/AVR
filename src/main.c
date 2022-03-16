@@ -313,6 +313,13 @@ extern "C"
 #    warning "PROTOCOL_VERSIE not defined"
 #endif
 
+#define S1_Opening_flag 0x7e
+#define S1_Frame_type 0x80
+#define S1_Frame_length 0x2b
+#define S1_Address_field 0xff
+#define S1_Control_field 0x03
+#define S1_Closing_flag 0x7e
+
     /* Configuring the Pin */
     static void init_io()
     {
@@ -515,6 +522,469 @@ extern "C"
         else
         {
             RingBuffer_Remove(&RX_Buffer);
+        }
+    }
+
+    uint8_t meterdata_int()
+    {
+/* 7e -- S1_Opening_flag
+ * 80  0 S1_Frame_type
+ * 2b  1 S1_Frame_length
+ * ff  2 S1_Address_field
+ * 03  3 S1_Control_field
+ * 31  4 Meter ID  1
+ * 53  5 Meter ID  2
+ * 41  6 Meter ID  3
+ * 47  7 Meter ID  4
+ * 31  8 Meter ID  5
+ * 31  9 Meter ID  6
+ * 30 10 Meter ID  7
+ * 30 11 Meter ID  8
+ * 32 12 Meter ID  9
+ * 37 13 Meter ID 10
+ * 33 14 Meter ID 11
+ * 36 15 Meter ID 12
+ * 34 16 Meter ID 13
+ * 39 17 Meter ID 14
+ * 0a 18 Additional information
+ * 34 19 Sampling frequency
+ * c3 20 Network frequency
+ * 37 21
+ * 9b 22 Frame sequence number
+ * ca 23 Voltage Phase 1
+ * 3f 24
+ * 00 25 Current Phase 1
+ * 00 26
+ * 19 27
+ * 00 28 Voltage Phase 2
+ * 00 29
+ * 00 30 Current Phase 2
+ * 00 31
+ * 00 32
+ * 00 33 Voltage Phase 3
+ * 00 34
+ * 00 35 Current Phase 3
+ * 00 36
+ * 00 37
+ * 00 38 Current neutral
+ * 00 39
+ * 00 40
+ * a3 41 CRC
+ * 8a 42
+ * 7e -- S1_Opening_flag */
+        static uint8_t frame_sequence_nr=0;
+        uint8_t return_var=0;
+        /* data to be received? */
+        if (!(UCSR1A & (1 << RXC1)))
+        {
+            return 0; /* no */
+        }
+
+        /* Get received data from buffer */
+        unsigned char data = UDR1;
+
+        if (data!=S1_Opening_flag)
+        {
+            return 2;
+        }
+        /* Wait for data to be received */
+        while ( !(UCSR1A & (1 << RXC1)))
+            ;
+        /* dit werkt telegram_ponter==5 */
+//        PORTD |= (1 << 5); /* hoog */
+
+        /* Get received data from buffer */
+        data = UDR1;
+
+
+        if (data==S1_Opening_flag) /* dit is de start */
+        {
+            /* Wait for data to be received */
+            while ( !(UCSR1A & (1 << RXC1)))
+                ;
+            /* Get received data from buffer */
+            data = UDR1;
+        }
+
+        if (data!=S1_Frame_type)
+        {
+            return 3;
+        }
+
+        while ( !(UCSR1A & (1 << RXC1)))/*  1 */;
+        data = UDR1;
+        if (data!=S1_Frame_length)
+        {
+            return 4;
+        }
+
+        while ( !(UCSR1A & (1 << RXC1)))/*  2 */;
+        data = UDR1;
+        if (data!=S1_Address_field)
+        {
+            return 5;
+        }
+
+        while ( !(UCSR1A & (1 << RXC1)))/* 3 */;
+        data = UDR1;
+        if (data!=S1_Control_field)
+        {
+            return 6;
+        }
+
+        /* 4-17 telegram_ponter = Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/*  4 */;
+        data = UDR1; /* Meter ID */
+
+        TIFR1=(1<<OCF1A);//reset timer ctc
+        TCNT1=0;
+        OCR1A=5;
+        TCCR1A=(2<<COM1A0);/* on comp. laag */
+//                PORTD &= ~(1 << 5); /* Laag */
+
+        while ( !(UCSR1A & (1 << RXC1)))/*  5 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/*  6 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/*  7 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/*  8 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/*  9 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/* 10 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/* 11 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/* 12 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/* 13 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/* 14 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/* 15 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/* 16 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/* 17 */;
+        data = UDR1; /* Meter ID */
+        while ( !(UCSR1A & (1 << RXC1)))/* 18 */;
+        data = UDR1;/* Additional information 3.3.1 */
+        if(data!=0x0a){
+            /* Single Phase,
+             * Per period fixed sampling,
+             * 3W,
+             * all sample values correct,
+             * not measured and/or provided
+             * versie 1.0 */
+            return_var=data;
+        }
+//        if(data&0x01){
+//            /* 1 = Poly phase */
+//        } else {
+//            /* 0 = Single Phase*/
+//        }
+//        if(data&0x02){
+//            /* 1 = Per period fixed sampling */
+//        } else {
+//            /* 0 = Per second fixed sampling */
+//        }
+//        if(data&0x04){
+//            /* 1 = 4W */
+//        } else {
+//            /* 0 = 3W (and Single phase) */
+//        }
+//        if(data&0x08){
+//            /* 1 = all sample values correct */
+//        } else {
+//            /* 0 = One or more samples corrupt */
+//        }
+//        if(data&0x10){
+//            /* 1 = measured and provided */
+//        } else {
+//            /* 0 = not measured and/or provided */
+//        }
+        while ( !(UCSR1A & (1 << RXC1)))/* 19 */;
+        data = UDR1;/* Sampling frequency */
+        if(data!=0x34){
+            return_var=data;
+        }
+        union B2I16
+        {
+           int16_t i;
+           uint8_t b[2];
+        };
+        union B2I16 Network_frequency;
+        /* 20-21 telegram_ponter = Network frequency */
+        while ( !(UCSR1A & (1 << RXC1)))/* 20 */;
+        data = UDR1;/* Network frequency */
+        Network_frequency.b[1]=data;
+        while ( !(UCSR1A & (1 << RXC1)))/* 21 */;
+        data = UDR1;/* Network frequency */
+        Network_frequency.b[0]=data;
+        while ( !(UCSR1A & (1 << RXC1)))/* 22 */;
+        data = UDR1;/* Frame sequence number */
+        if(frame_sequence_nr!=data){
+            return_var=data-frame_sequence_nr;
+            frame_sequence_nr=data;
+        }
+        union B2I16 Voltage_Phase_1;
+        /* 23-26 telegram_ponter = Voltage Phase 1 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 23 */;
+        data = UDR1;/* Voltage Phase 1 */
+        Voltage_Phase_1.b[1]=data;
+        while ( !(UCSR1A & (1 << RXC1)))/* 24 */;
+        data = UDR1;/* Voltage Phase 1 */
+        Voltage_Phase_1.b[0]=data;
+
+        union B2I32
+        {
+           int32_t i;
+           uint8_t b[4];
+        };
+        union B2I32 Current_Phase_1;
+        /* 25-27 telegram_ponter = Current Phase 1 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 25 */;
+        data = UDR1;/* Current Phase 1 */
+        if(data&0x80){
+            Current_Phase_1.b[3]=0xff;
+        } else {
+            Current_Phase_1.b[3]=0x00;
+        }
+        Current_Phase_1.b[2]=data;
+        while ( !(UCSR1A & (1 << RXC1)))/* 26 */;
+        data = UDR1;/* Current Phase 1 */
+        Current_Phase_1.b[1]=data;
+        while ( !(UCSR1A & (1 << RXC1)))/* 27 */;
+        data = UDR1;/* Current Phase 1 */
+        Current_Phase_1.b[0]=data;
+
+        /* 28-29 telegram_ponter = Voltage Phase 2 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 28 */;
+        data = UDR1;/* Voltage Phase 2 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 29 */;
+        data = UDR1;/* Voltage Phase 2 */
+        /* 30-32 telegram_ponter = Current Phase 2 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 30 */;
+        data = UDR1;/* Current Phase 2 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 31 */;
+        data = UDR1;/* Current Phase 2 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 32 */;
+        data = UDR1;/* Current Phase 2 */
+
+        /* 33-34 telegram_ponter = Voltage Phase 3 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 33 */;
+        data = UDR1;/* Voltage Phase 3 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 34 */;
+        data = UDR1;/* Voltage Phase 3 */
+        /* 35-37 telegram_ponter = Current Phase 3 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 35 */;
+        data = UDR1;/* Current Phase 3 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 36 */;
+        data = UDR1;/* Current Phase 3 */
+        while ( !(UCSR1A & (1 << RXC1)))/* 37 */;
+        data = UDR1;/* Current Phase 3 */
+
+        /* 38-40 telegram_ponter = Current neutral */
+        while ( !(UCSR1A & (1 << RXC1)))/* 38 */;
+        data = UDR1;/* Current neutral */
+        while ( !(UCSR1A & (1 << RXC1)))/* 39 */;
+        data = UDR1;/* Current neutral */
+        while ( !(UCSR1A & (1 << RXC1)))/* 40 */;
+        data = UDR1;/* Current neutral */
+        while ( !(UCSR1A & (1 << RXC1)))/* 41 */;
+        data = UDR1;/* CRC */
+        while ( !(UCSR1A & (1 << RXC1)))/* 42 */;
+        data = UDR1;/* CRC */
+        while ( !(UCSR1A & (1 << RXC1)))/* 43 */;
+        data = UDR1;
+        if (data!=S1_Closing_flag)
+        {
+            return 9;
+        }
+        ++frame_sequence_nr;
+
+        TIFR1=(1<<OCF1A);//reset timer ctc
+        TCNT1=0;
+        OCR1A=1000;
+        TCCR1A=(3<<COM1A0);/* on comp. hoog */
+
+        return return_var;
+    }
+
+    static void build_can_meterdata()
+    {
+        static uint8_t Frame_number=0;
+        if (RingBuffer_Peek(&RX1_Buffer) == 0x7e) /* opening/closing flag */
+        {
+            RingBuffer_Remove(&RX1_Buffer);
+            if (RingBuffer_Peek(&RX1_Buffer) == 0x7e) /* opening/closing flag */
+            {
+                RingBuffer_Remove(&RX1_Buffer);
+            }
+            if(RingBuffer_Peek(&RX1_Buffer) != 0x80) /* 0x08???? Frame Type */
+            {
+                CAN_TX_msg.id = CAN_Priority_config | module_adres ; /* CAN ID */
+                CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                CAN_TX_msg.rtr          = 0;
+                CAN_TX_msg.length       = 5;
+                CAN_TX_msg.data_byte[0] = 0xff;
+                CAN_TX_msg.data_byte[1] = 0x01;
+                CAN_TX_msg.data_byte[2] = 0x80;
+                CAN_TX_msg.data_byte[3] = RingBuffer_Remove(&RX1_Buffer);
+                CAN_TX_msg.data_byte[4] = RingBuffer_Peek(&RX1_Buffer);
+                CAN_TX_msg.data_byte[5] = 0;
+                CAN_TX_msg.data_byte[6] = 0;
+                CAN_TX_msg.data_byte[7] = 0;
+
+                MCP2515_message_TX();
+                return;
+            }
+            RingBuffer_Remove(&RX1_Buffer);
+            if(RingBuffer_Peek(&RX1_Buffer) != 0x2b) /* Frame length */
+            {
+                CAN_TX_msg.id = CAN_Priority_config | module_adres ; /* CAN ID */
+                CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                CAN_TX_msg.rtr          = 0;
+                CAN_TX_msg.length       = 5;
+                CAN_TX_msg.data_byte[0] = 0xff;
+                CAN_TX_msg.data_byte[1] = 0x02;
+                CAN_TX_msg.data_byte[2] = 0x2b;
+                CAN_TX_msg.data_byte[3] = RingBuffer_Remove(&RX1_Buffer);
+                CAN_TX_msg.data_byte[4] = RingBuffer_Peek(&RX1_Buffer);
+                CAN_TX_msg.data_byte[5] = 0;
+                CAN_TX_msg.data_byte[6] = 0;
+                CAN_TX_msg.data_byte[7] = 0;
+
+                MCP2515_message_TX();
+                return;
+            }
+            RingBuffer_Remove(&RX1_Buffer);
+            if(RingBuffer_Peek(&RX1_Buffer) != 0xff) /* address field */
+            {
+                CAN_TX_msg.id = CAN_Priority_config | module_adres ; /* CAN ID */
+                CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                CAN_TX_msg.rtr          = 0;
+                CAN_TX_msg.length       = 5;
+                CAN_TX_msg.data_byte[0] = 0xff;
+                CAN_TX_msg.data_byte[1] = 0x03;
+                CAN_TX_msg.data_byte[2] = 0xff;
+                CAN_TX_msg.data_byte[3] = RingBuffer_Remove(&RX1_Buffer);
+                CAN_TX_msg.data_byte[4] = RingBuffer_Peek(&RX1_Buffer);
+                CAN_TX_msg.data_byte[5] = 0;
+                CAN_TX_msg.data_byte[6] = 0;
+                CAN_TX_msg.data_byte[7] = 0;
+
+                MCP2515_message_TX();
+                return;
+            }
+            RingBuffer_Remove(&RX1_Buffer);
+            if(RingBuffer_Peek(&RX1_Buffer) != 0x03) /* control field */
+            {
+                CAN_TX_msg.id = CAN_Priority_config | module_adres ; /* CAN ID */
+                CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                CAN_TX_msg.rtr          = 0;
+                CAN_TX_msg.length       = 5;
+                CAN_TX_msg.data_byte[0] = 0xff;
+                CAN_TX_msg.data_byte[1] = 0x04;
+                CAN_TX_msg.data_byte[2] = 0x03;
+                CAN_TX_msg.data_byte[3] = RingBuffer_Remove(&RX1_Buffer);
+                CAN_TX_msg.data_byte[4] = RingBuffer_Peek(&RX1_Buffer);
+                CAN_TX_msg.data_byte[5] = 0;
+                CAN_TX_msg.data_byte[6] = 0;
+                CAN_TX_msg.data_byte[7] = 0;
+
+                MCP2515_message_TX();
+                return;
+            }
+            RingBuffer_Remove(&RX1_Buffer);/* control field */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c1 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c2 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c3 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c4 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c5 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c6 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c7 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c8 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c9 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c10 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c11 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c12 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c13 */
+            RingBuffer_Remove(&RX1_Buffer);/* Meter ID c14 */
+
+            uint8_t Additional_info=RingBuffer_Remove(&RX1_Buffer);/* Additional information */
+            uint8_t Sampling_frequency=RingBuffer_Remove(&RX1_Buffer);/* Sampling frequency */
+            RingBuffer_Remove(&RX1_Buffer);/* Network frequency (MSB) */
+            RingBuffer_Remove(&RX1_Buffer);/* Network frequency (LSB) 1 mHz resolution */
+
+            ++Frame_number;
+            if (RingBuffer_Peek(&RX1_Buffer) != Frame_number) /* Frame sequence number */
+            {
+                CAN_TX_msg.id = CAN_Priority_USART1 | module_adres ; /* CAN ID */
+                CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                CAN_TX_msg.rtr          = 0;
+                CAN_TX_msg.length       = 4;
+                CAN_TX_msg.data_byte[0] = Frame_number;
+                CAN_TX_msg.data_byte[1] = RingBuffer_Peek(&RX1_Buffer);
+                CAN_TX_msg.data_byte[2] = Additional_info;
+                CAN_TX_msg.data_byte[3] = Sampling_frequency;
+                CAN_TX_msg.data_byte[4] = 0;
+                CAN_TX_msg.data_byte[5] = 0;
+                CAN_TX_msg.data_byte[6] = 0;
+                CAN_TX_msg.data_byte[7] = 0;
+                MCP2515_message_TX();
+
+                Frame_number=RingBuffer_Remove(&RX1_Buffer);/* Frame sequence number */
+            }
+            if (Frame_number==20){
+                CAN_TX_msg.id = CAN_Priority_USART1 | module_adres ; /* CAN ID */
+                CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+                CAN_TX_msg.rtr          = 0;
+                CAN_TX_msg.length       = 5;
+                CAN_TX_msg.data_byte[0] = RingBuffer_Remove(&RX1_Buffer);/* Voltage Phase 1 (MSB) */
+                CAN_TX_msg.data_byte[1] = RingBuffer_Remove(&RX1_Buffer);/* Voltage Phase 1 (LSB) */
+                CAN_TX_msg.data_byte[2] = RingBuffer_Remove(&RX1_Buffer);/* Current Phase 1 byte 1 (MSB) */
+                CAN_TX_msg.data_byte[3] = RingBuffer_Remove(&RX1_Buffer);/* Current Phase 1 byte 2 */
+                CAN_TX_msg.data_byte[4] = RingBuffer_Remove(&RX1_Buffer);/* Current Phase 1 byte 3 (LSB) */
+                CAN_TX_msg.data_byte[5] = 0;
+                CAN_TX_msg.data_byte[6] = 0;
+                CAN_TX_msg.data_byte[7] = 0;
+
+                MCP2515_message_TX();
+
+            } else {
+                RingBuffer_Remove(&RX1_Buffer);/* Voltage Phase 1 (MSB) */
+                RingBuffer_Remove(&RX1_Buffer);/* Voltage Phase 1 (LSB) */
+
+                RingBuffer_Remove(&RX1_Buffer);/* Current Phase 1 byte 1 (MSB) */
+                RingBuffer_Remove(&RX1_Buffer);/* Current Phase 1 byte 2 */
+                RingBuffer_Remove(&RX1_Buffer);/* Current Phase 1 byte 3 (LSB) */
+            }
+
+            RingBuffer_Remove(&RX1_Buffer);/* Voltage Phase 2 (MSB) */
+            RingBuffer_Remove(&RX1_Buffer);/* Voltage Phase 2 (LSB) */
+
+            RingBuffer_Remove(&RX1_Buffer);/* Current Phase 2 byte 1 (MSB) */
+            RingBuffer_Remove(&RX1_Buffer);/* Current Phase 2 byte 2 */
+            RingBuffer_Remove(&RX1_Buffer);/* Current Phase 2 byte 3 (LSB) */
+
+            RingBuffer_Remove(&RX1_Buffer);/* Voltage Phase 3 (MSB) */
+            RingBuffer_Remove(&RX1_Buffer);/* Voltage Phase 3 (LSB) */
+
+            RingBuffer_Remove(&RX1_Buffer);/* Current Phase 3 byte 1 (MSB) */
+            RingBuffer_Remove(&RX1_Buffer);/* Current Phase 3 byte 2 */
+            RingBuffer_Remove(&RX1_Buffer);/* Current Phase 3 byte 3 (LSB) */
+
+            RingBuffer_Remove(&RX1_Buffer);/* Current neutral byte 1 (MSB) */
+            RingBuffer_Remove(&RX1_Buffer);/* Current neutral byte 2 */
+            RingBuffer_Remove(&RX1_Buffer);/* Current neutral byte 3 (LSB) */
+            RingBuffer_Remove(&RX1_Buffer);/* CRC */
+            RingBuffer_Remove(&RX1_Buffer);/* CRC */
+        }
+        else
+        {
+            RingBuffer_Remove(&RX1_Buffer);
         }
     }
 
@@ -833,6 +1303,7 @@ extern "C"
 
             init_io();
             init_USART0();
+            init_USART1();
 
             /* 0x20 => deze µc is gereset */
             USART_echo_id_Adres(0x20 | mcusr, 0x00);
@@ -918,110 +1389,33 @@ extern "C"
                 set_port(output,0x01&&(PORTD<<pin_nr),0);
         }
         wdt_reset(); /* Reset Watchdog timer*/
+
+//        TCCR1A=(1<<COM1A0);
+//        PORTD |= (1 << 5);//stop puls
+//        TCCR1B=(1<<WGM12);
+        TCCR1B=(1<<WGM12);
+        TCCR1B|=(1<<CS10); //clk/1
         for (;;)
         {
-            /* loop */;
+            /* loop */
 
-            if ((~TCNT3 & 0x1000) && poling==1){
-                poling=0;
-            }
-            if ((TCNT3 & 0x1000) && poling==0){
-                poling=1;
-                v_pinA=input_pol((PINA&~DDRA), v_pinA, 0x00);
-                v_pinB=input_pol((PINB&~DDRB), v_pinB, 0x08);
-                v_pinC=input_pol((PINC&~DDRC), v_pinC, 0x10);
-                uint8_t masker=(~DDRD);
-                if(1){
-                    masker&=(~0x04);
-                }
-                v_pinD=input_pol((PIND&masker), v_pinD, 0x18);
+//            meterdata();//test
+            meterdata_int();
 
-                uint8_t adc_var=ADCH;
-                uint8_t adc_pin_nr=(0x07 & ADMUX);
-                if(v_adc_pin[adc_pin_nr]<adc_var){
-                    if((adc_var-v_adc_pin[adc_pin_nr])>1){
-
-                        v_adc_pin[adc_pin_nr]=adc_var;
-                        CAN_TX_msg.id           = (CAN_Priority_normale | module_adres);
-                        CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
-                        CAN_TX_msg.rtr          = 0;
-                        CAN_TX_msg.length       = 3;
-                        CAN_TX_msg.data_byte[0] = 0x02;
-                        CAN_TX_msg.data_byte[1] = adc_pin_nr;
-                        CAN_TX_msg.data_byte[2] = adc_var;
-                        CAN_TX_msg.data_byte[3] = 0;
-                        CAN_TX_msg.data_byte[4] = 0;
-                        CAN_TX_msg.data_byte[5] = 0;
-                        CAN_TX_msg.data_byte[6] = 0;
-                        CAN_TX_msg.data_byte[7] = 0;
-                        MCP2515_message_TX();
-                    }
-                } else if (v_adc_pin[adc_pin_nr]>adc_var) {
-                    if((v_adc_pin[adc_pin_nr]-adc_var)>1){
-
-                        v_adc_pin[adc_pin_nr]=adc_var;
-                        CAN_TX_msg.id           = (CAN_Priority_normale | module_adres);
-                        CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
-                        CAN_TX_msg.rtr          = 0;
-                        CAN_TX_msg.length       = 3;
-                        CAN_TX_msg.data_byte[0] = 0x02;
-                        CAN_TX_msg.data_byte[1] = adc_pin_nr;
-                        CAN_TX_msg.data_byte[2] = adc_var;
-                        CAN_TX_msg.data_byte[3] = 0;
-                        CAN_TX_msg.data_byte[4] = 0;
-                        CAN_TX_msg.data_byte[5] = 0;
-                        CAN_TX_msg.data_byte[6] = 0;
-                        CAN_TX_msg.data_byte[7] = 0;
-                        MCP2515_message_TX();
-                    }
-                }
-
-                ++adc_pin_nr;
-                if(adc_pin_nr>7){adc_pin_nr=0;}
-                adc_pin_nr &= 0x07;
-                adc_pin_nr |= (ADMUX & 0xe0); //0b11100000
-                ADMUX = adc_pin_nr;
-                /* Start Conversion */
-                ADCSRA |= (0x01 << ADSC);
-            }
-
+//            Receive_USART1();
             if(TCNT3>65000){
 
-                //test uitput
-                uint8_t pin_nr=0;
-                for (;pin_nr<0xff;++pin_nr) {
-                    if(current_O[pin_nr][1]>0){
-                        //timer or pwm
-                        if(current_O[pin_nr][0]!=0x03)/* niet pwm */{
-                            --current_O[pin_nr][1];// verminder de duur
-                            if(current_O[pin_nr][1]==0){
-                                //mod pin
-                                if(current_O[pin_nr][0]==0x00){
-                                    //set uitgang aan
-                                    set_port(pin_nr,0x01,0x00);
-                                } else if (current_O[pin_nr][0]==0x01) {
-                                    //set uitgang uit
-                                    set_port(pin_nr,0x00,0x00);
-                                }
-                            } else if (current_O[pin_nr][1]==1) {
-                                //zal uit gaan zend can
-                                CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
-                                CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
-                                CAN_TX_msg.rtr          = 0;
-                                CAN_TX_msg.length       = 4;
-                                CAN_TX_msg.data_byte[0] = 0x03; /* 1 uitgang */
-                                CAN_TX_msg.data_byte[1] = pin_nr;
-                                CAN_TX_msg.data_byte[2] = current_O[pin_nr][0];/* toestand */
-                                CAN_TX_msg.data_byte[3] = 0x01;/* duur */
-                                CAN_TX_msg.data_byte[4] = 0;
-                                CAN_TX_msg.data_byte[5] = 0;
-                                CAN_TX_msg.data_byte[6] = 0;
-                                CAN_TX_msg.data_byte[7] = 0;
-                                MCP2515_message_TX();
-                            }
-                        }
-                    }
-                }
+                /* test */
+//                if(temp>0){
+//                    CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
+//                    CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+//                    CAN_TX_msg.rtr          = 0;
+//                    CAN_TX_msg.length       = 8;
+//                    CAN_TX_msg.data_byte[0] = 0xFF;
+//                    CAN_TX_msg.data_byte[1] = temp;
+//                    MCP2515_message_TX();
+//                }
+                /* test */
 
                 ++Can_watchdog;
                 if(Can_watchdog>4){
@@ -1067,11 +1461,8 @@ extern "C"
                 TCNT3=0;
             }
             wdt_reset(); /* Reset Watchdog timer*/
-            Receive_USART0();
 
-            /* verwerk de RX USART0 buffer */
-            uint8_t RX_BufferCount = RingBuffer_GetCount(&RX_Buffer);
-            if (RX_BufferCount > 15) { build_can_block(); }
+//            Receive_USART1();
 
             if (MCP2515_check_for_incoming_message())
             {
@@ -1126,151 +1517,7 @@ extern "C"
                         }
                         else
                         {                        /* error in code µc */
-                            Transmit_USART0(10); /* new line */
-                            char* Buffer = "- error in code µc -" DEBUG;
-                            while (*Buffer) { Transmit_USART0(*Buffer++); }
-                        }
-                    }
 
-                    /* set */
-                    else if (CAN_RX_msg.id == (CAN_Priority_set | module_adres))
-                    {
-                        /* start van protocol
-                         * µc   ID 5       01
-                         * command  data_byte0 03
-                         * number   data_byte1 00-ff
-                         * toestand data_byte2 00-ff
-                         * data     data_byte3 00-ff
-                         */
-                        if (CAN_RX_msg.length == 4)
-                        {
-                            if (CAN_RX_msg.data_byte[0] == 0x03)
-                            {
-                                set_port(
-                                    CAN_RX_msg.data_byte[1],
-                                    CAN_RX_msg.data_byte[2],
-                                    CAN_RX_msg.data_byte[3]);
-                            }
-                        }
-                    }
-
-                    /* extended */
-                    else if (CAN_RX_msg.id == (0x02000000 | microcontroller_id))
-                    {
-                        if (CAN_RX_msg.length == 3)
-                        {
-                            if (CAN_RX_msg.data_byte[0] == 0x01)
-                            {
-                                eeprom_update_byte(
-                                    (uint8_t*) EE_MODULE_ADRES,
-                                    CAN_RX_msg.data_byte[1]);
-                                module_adres = eeprom_read_byte(
-                                    (uint8_t*) EE_MODULE_ADRES);
-                                if (CAN_RX_msg.data_byte[1] != module_adres)
-                                {
-                                    module_adres = 0x00; /* reset */
-                                }
-                            }
-                            else if (CAN_RX_msg.data_byte[0] == 0x02)
-                            {
-                                uint16_t temp =
-                                    (uint16_t)(CAN_RX_msg.data_byte[1] << 8);
-                                temp |= CAN_RX_msg.data_byte[2];
-                                eeprom_update_word(
-                                    (uint16_t*) EE_MICROCONTROLLER_ID,
-                                    temp);
-                                microcontroller_id = eeprom_read_word(
-                                    (uint16_t*) EE_MICROCONTROLLER_ID);
-                                if (temp != microcontroller_id)
-                                {
-                                    microcontroller_id = 0x0000; /* reset */
-                                }
-                            }
-                            CAN_echo_id_Adres(0x00, 0x00);
-                        }
-                    }
-
-                    /* High */
-                    /* normale */
-                    else if (
-                        ((CAN_RX_msg.id & 0xffffff00) == CAN_Priority_High)
-                        || ((CAN_RX_msg.id & 0xffffff00) == CAN_Priority_normale))
-                    {
-                        if(((CAN_RX_msg.id & 0x000000ff) == module_adres))
-                        {
-                            /* Remote Frame */
-                            CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
-                            CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
-                            CAN_TX_msg.rtr          = 0;
-                            CAN_TX_msg.length       = 5;
-                            CAN_TX_msg.data_byte[0] = 0x05; /* alle ingangen */
-                            CAN_TX_msg.data_byte[1] = PINA;
-                            CAN_TX_msg.data_byte[2] = PINB;
-                            CAN_TX_msg.data_byte[3] = PINC;
-                            CAN_TX_msg.data_byte[4] = PIND;
-                            CAN_TX_msg.data_byte[5] = 0;
-                            CAN_TX_msg.data_byte[6] = 0;
-                            CAN_TX_msg.data_byte[7] = 0;
-                            MCP2515_message_TX();
-                            CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
-                            CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
-                            CAN_TX_msg.rtr          = 0;
-                            CAN_TX_msg.length       = 5;
-                            CAN_TX_msg.data_byte[0] = 0x06; /* alle uitgangen */
-                            CAN_TX_msg.data_byte[1] = PORTA;
-                            CAN_TX_msg.data_byte[2] = PORTB;
-                            CAN_TX_msg.data_byte[3] = PORTC;
-                            CAN_TX_msg.data_byte[4] = PORTD;
-                            CAN_TX_msg.data_byte[5] = 0;
-                            CAN_TX_msg.data_byte[6] = 0;
-                            CAN_TX_msg.data_byte[7] = 0;
-                            MCP2515_message_TX();
-
-                        } else {
-                            /* test CAN id on list */
-                            /* filter module_adres */
-                            if (CAN_RX_msg.length > 2)
-                            {
-                                CAN_messag(
-                                    (CAN_RX_msg.id & 0x000000ff),
-                                    CAN_RX_msg.data_byte[0],
-                                    CAN_RX_msg.data_byte[1],
-                                    CAN_RX_msg.data_byte[2]);
-                            }
-                            else
-                            {
-                                Transmit_USART0(10); /* new line */
-                                char* Buffer = "! CAN length < 3 -" DEBUG;
-                                while (*Buffer) { Transmit_USART0(*Buffer++); }
-                            }
-                        }
-                    }
-
-                    typedef union
-                    {
-                        uint32_t long_id;
-                        uint8_t  int_id[8];
-                    } ID;
-                    ID id;
-                    id.long_id = CAN_RX_msg.id;
-                    Transmit_USART0(10); /* new line */
-                    Transmit_USART0(id.int_id[3]);
-                    Transmit_USART0(id.int_id[2]);
-                    Transmit_USART0(id.int_id[1]);
-                    Transmit_USART0(id.int_id[0]);
-                    Transmit_USART0(CAN_RX_msg.ext_id);
-                    Transmit_USART0(CAN_RX_msg.rtr);
-                    Transmit_USART0(CAN_RX_msg.length);
-                    uint8_t var = 0;
-                    for (; var < 8; ++var)
-                    {
-                        if (var < CAN_RX_msg.length)
-                        {
-                            Transmit_USART0(CAN_RX_msg.data_byte[var]);
-                        }
-                        else
-                        {
-                            Transmit_USART0(0x00);
                         }
                     }
                 }

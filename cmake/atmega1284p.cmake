@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.14...3.19)
 set(MCU atmega1284p)
 add_definitions(-D__AVR_ATmega1284P__)
 # 20Mhz
-set(F_CPU 20000000)
+set(F_CPU 16000000)
 add_definitions(-DF_CPU=${F_CPU})
 #SPI
 add_definitions(-DSPI_PORT=PORTB)
