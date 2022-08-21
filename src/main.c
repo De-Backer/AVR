@@ -107,7 +107,7 @@ extern "C"
 #if defined(__AVR_ATmega1284P__)
 
 #    define MICROCONTROLLER_TYPE 0x01
-#    define PROTOCOL_VERSIE      0x01
+#    define PROTOCOL_VERSIE      0x02 /* Mod adc + Fix set out to can */
 
 /* 0x04 [module_adres] 0x00 0x00 0x08
  *                0x01 0x02 0x00 0x03 <-- EE_MICROCONTROLLER_DDRA
@@ -309,6 +309,15 @@ extern "C"
 #   define CAN_Priority_normale      0x500
 #   define CAN_Priority_USART1       0x600
 #   define CAN_Priority_config       0x700
+#elif PROTOCOL_VERSIE==0x02
+#   define CAN_Priority_High_reserve 0x000
+#   define CAN_Priority_global       0x100
+#   define CAN_Priority_High         0x200
+#   define CAN_Priority_High_USART1  0x300
+#   define CAN_Priority_set          0x400
+#   define CAN_Priority_normale      0x500
+#   define CAN_Priority_USART1       0x600
+#   define CAN_Priority_config       0x700
 #else
 #    warning "PROTOCOL_VERSIE not defined"
 #endif
@@ -366,6 +375,21 @@ extern "C"
         CAN_TX_msg.data_byte[5] = O_max_block;
         CAN_TX_msg.data_byte[6] = data1;
         CAN_TX_msg.data_byte[7] = data2;
+
+        MCP2515_message_TX();
+
+        CAN_TX_msg.id           = (0x02000000 | microcontroller_id);
+        CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+        CAN_TX_msg.rtr          = 0;
+        CAN_TX_msg.length       = 8;
+        CAN_TX_msg.data_byte[0] = GIT_COMMIT_SHA[0];
+        CAN_TX_msg.data_byte[1] = GIT_COMMIT_SHA[1];
+        CAN_TX_msg.data_byte[2] = GIT_COMMIT_SHA[2];
+        CAN_TX_msg.data_byte[3] = GIT_COMMIT_SHA[3];
+        CAN_TX_msg.data_byte[4] = GIT_COMMIT_SHA[4];
+        CAN_TX_msg.data_byte[5] = GIT_COMMIT_SHA[5];
+        CAN_TX_msg.data_byte[6] = GIT_COMMIT_SHA[6];
+        CAN_TX_msg.data_byte[7] = GIT_COMMIT_SHA[7];
 
         MCP2515_message_TX();
     }
@@ -483,7 +507,10 @@ extern "C"
             CAN_TX_msg.data_byte[3] = state;
             CAN_TX_msg.data_byte[4] = duur;
         }
-        MCP2515_message_TX();
+        while (MCP2515_message_TX()==0) {
+            //0==Error no Transmit buffer empty
+        }
+
     }
 
     static void build_can_block()
@@ -939,7 +966,7 @@ extern "C"
                 uint8_t adc_var=ADCH;
                 uint8_t adc_pin_nr=(0x07 & ADMUX);
                 if(v_adc_pin[adc_pin_nr]<adc_var){
-                    if((adc_var-v_adc_pin[adc_pin_nr])>1){
+                    if((adc_var-v_adc_pin[adc_pin_nr])>2){//Mod to 2 werkt trager als waarde stijgt
 
                         v_adc_pin[adc_pin_nr]=adc_var;
                         CAN_TX_msg.id           = (CAN_Priority_normale | module_adres);
@@ -1196,7 +1223,7 @@ extern "C"
                         ((CAN_RX_msg.id & 0xffffff00) == CAN_Priority_High)
                         || ((CAN_RX_msg.id & 0xffffff00) == CAN_Priority_normale))
                     {
-                        if(((CAN_RX_msg.id & 0x000000ff) == module_adres))
+                        if(((CAN_RX_msg.id & 0x000000ff) == module_adres) && CAN_RX_msg.rtr==1 )
                         {
                             /* Remote Frame */
                             CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
