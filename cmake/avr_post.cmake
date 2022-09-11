@@ -12,7 +12,7 @@ DEPENDS ${PROJECT_NAME})
 add_custom_target(hex ALL
 avr-objcopy
  -R .eeprom
- -O ihex ${PROJECT_NAME}.elf ${PROJECT_NAME}.hex
+ -O ihex ${PROJECT_NAME}.elf ${PROJECT_NAME}_${GIT_COMMIT_SHA}.hex
  DEPENDS strip)
 
 # Transform binary into hex file, this is the eeprom part
@@ -32,7 +32,7 @@ avrdude
  -P ${PROG_PORT}
  -p ${MCU}
  -v
- -U flash:w:${PROJECT_NAME}.hex
+ -U flash:w:${PROJECT_NAME}_${GIT_COMMIT_SHA}.hex
  DEPENDS hex)
 
 # Upload the eeprom with avrdude
@@ -59,4 +59,4 @@ avrdude
 
 # Clean extra files
 set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
-"${PROJECT_NAME}.hex;${PROJECT_NAME}.eeprom;${PROJECT_NAME}.lst")
+"${PROJECT_NAME}_${GIT_COMMIT_SHA}.hex;${PROJECT_NAME}.eeprom;${PROJECT_NAME}.lst")
