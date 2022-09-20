@@ -41,3 +41,4 @@ target_link_libraries(AVR PRIVATE USART BUFFER CAN_MCP2515 SPI)
 
 include(cmake/avr_post.cmake)
 
+message("npx mcp-can-boot-flash-app -f ${PROJECT_NAME}_${GIT_COMMIT_SHA}.hex -p atmega1284p -m 0xffff -R 7ff#0404")
