@@ -926,22 +926,22 @@ extern "C"
         /* output zet op de can bus bij opstart */
         uint8_t output=0;
         for (uint8_t pin_nr=0;pin_nr<0x08;++pin_nr,++output) {
-            if(0x01&&(DDRA<<pin_nr))/* is een output */
+            if(0x01&(DDRA<<pin_nr))/* is een output */
                 set_port(output,0x01&(PORTA<<pin_nr),0);
         }
         wdt_reset(); /* Reset Watchdog timer*/
         for (uint8_t pin_nr=0;pin_nr<0x08;++pin_nr,++output) {
-            if(0x01&&(DDRB<<pin_nr))
+            if(0x01&(DDRB<<pin_nr))
                 set_port(output,0x01&(PORTB<<pin_nr),0);
         }
         wdt_reset(); /* Reset Watchdog timer*/
         for (uint8_t pin_nr=0;pin_nr<0x08;++pin_nr,++output) {
-            if(0x01&&(DDRC<<pin_nr))
+            if(0x01&(DDRC<<pin_nr))
                 set_port(output,0x01&(PORTC<<pin_nr),0);
         }
         wdt_reset(); /* Reset Watchdog timer*/
         for (uint8_t pin_nr=0;pin_nr<0x08;++pin_nr,++output) {
-            if(0x01&&(DDRD<<pin_nr))
+            if(0x01&(DDRD<<pin_nr))
                 set_port(output,0x01&(PORTD<<pin_nr),0);
         }
         wdt_reset(); /* Reset Watchdog timer*/
