@@ -38,6 +38,7 @@ extern "C"
 #include "../include/SPI.h"
 #include "../include/usart.h"
 
+#include <avr/boot.h> /* to read serial number */
 #include <avr/eeprom.h>
 #include <avr/io.h>
 #include <avr/wdt.h>
@@ -321,7 +322,66 @@ extern "C"
 #else
 #    warning "PROTOCOL_VERSIE not defined"
 #endif
+    /* C code to read serial number */
+    void prind_serial_number()
+    {
+        //https://microchipsupport.force.com/s/article/Serial-number-in-AVR---Mega-Tiny-devices
 
+        // boot_signature_byte_get(0x0F);//Lot Number 1nd Char
+        // boot_signature_byte_get(0x0E);//Lot Number 2nd Char
+        // boot_signature_byte_get(0x11);//Lot Number 3nd Char
+        // boot_signature_byte_get(0x10);//Lot Number 4nd Char
+        // boot_signature_byte_get(0x13);//Lot Number 5nd Char
+        // boot_signature_byte_get(0x12);//Lot Number 6nd Char
+        // boot_signature_byte_get(0x14);//Reserved
+        // boot_signature_byte_get(0x15);//Wafer Number
+        // boot_signature_byte_get(0x16);//Y-coordinate
+        // boot_signature_byte_get(0x17);//X-coordinate
+    {
+        uint8_t var=boot_signature_byte_get(0x13)-0x30;
+        var=var*10;
+        var+=boot_signature_byte_get(0x12)-0x30;
+
+        CAN_TX_msg.id = var;
+    }
+
+
+    // CAN_TX_msg.id = boot_signature_byte_get(0x12)-30;//Lot Number 6nd Char
+    CAN_TX_msg.id = (CAN_TX_msg.id << 8);
+    CAN_TX_msg.id |= boot_signature_byte_get(0x15);//Wafer Number
+    CAN_TX_msg.id = (CAN_TX_msg.id << 8);
+    CAN_TX_msg.id |= boot_signature_byte_get(0x16);//Y-coordinate
+    CAN_TX_msg.id = (CAN_TX_msg.id << 8);
+    CAN_TX_msg.id |= boot_signature_byte_get(0x17);//X-coordinate
+    CAN_TX_msg.id |= 0x10000000;
+        CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+        CAN_TX_msg.rtr          = 0;
+        CAN_TX_msg.length       = 6;
+        CAN_TX_msg.data_byte[0] = boot_signature_byte_get(0x0F);
+        CAN_TX_msg.data_byte[1] = boot_signature_byte_get(0x0E);
+        CAN_TX_msg.data_byte[2] = boot_signature_byte_get(0x11);
+        CAN_TX_msg.data_byte[3] = boot_signature_byte_get(0x10);
+        CAN_TX_msg.data_byte[4] = boot_signature_byte_get(0x13);
+        CAN_TX_msg.data_byte[5] = boot_signature_byte_get(0x12);
+        CAN_TX_msg.data_byte[6] = 0;
+        CAN_TX_msg.data_byte[7] = 0;
+
+            while (MCP2515_message_TX()==0) {
+                //0==Error no Transmit buffer empty
+            }
+
+        CAN_TX_msg.length       = 4;
+        CAN_TX_msg.data_byte[0] = boot_signature_byte_get(0x14);
+        CAN_TX_msg.data_byte[1] = boot_signature_byte_get(0x15);
+        CAN_TX_msg.data_byte[2] = boot_signature_byte_get(0x16);
+        CAN_TX_msg.data_byte[3] = boot_signature_byte_get(0x17);
+        CAN_TX_msg.data_byte[4] = 0;
+        CAN_TX_msg.data_byte[5] = 0;
+
+            while (MCP2515_message_TX()==0) {
+                //0==Error no Transmit buffer empty
+            }
+    }
     /* Configuring the Pin */
     static void init_io()
     {
@@ -868,6 +928,7 @@ extern "C"
             MCP2515_init();
 
             CAN_echo_id_Adres(mcusr, 0x00);
+            prind_serial_number();
         }
 
         CAN_TX_msg.id           = 0;
