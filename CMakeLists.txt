@@ -30,6 +30,16 @@ add_definitions(-DINT_CAN=2)
 add_definitions(-DID_CAN=0x10)
 add_library(CAN_MCP2515 src/CAN_MCP2515.c include/CAN_MCP2515.h)
 
+#MCP23S17
+add_definitions(-DSPI_DDR_MCP23S17=DDRB)
+add_definitions(-DSPI_PORT_MCP23S17=PORTB)
+add_definitions(-DSPI_CS_MCP23S17=0)
+#reset pin
+add_definitions(-DRESET_DDR_MCP23S17=DDRB)
+add_definitions(-DRESET_PORT_MCP23S17=PORTB)
+add_definitions(-DRESET_PIN_MCP23S17=3)
+add_library(MCP23S17 src/mcp23s17.c include/mcp23s17.h)
+
 add_library(SPI src/SPI.c include/SPI.h)
 
 add_library(BUFFER src/RingBuffer.c include/RingBuffer.h)
@@ -37,7 +47,7 @@ add_library(BUFFER src/RingBuffer.c include/RingBuffer.h)
 # Create one target
 add_executable(AVR src/main.c)
 
-target_link_libraries(AVR PRIVATE USART BUFFER CAN_MCP2515 SPI)
+target_link_libraries(AVR PRIVATE USART BUFFER CAN_MCP2515 MCP23S17 SPI)
 
 include(cmake/avr_post.cmake)
 

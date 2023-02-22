@@ -34,6 +34,7 @@ extern "C"
 {
 #endif
 
+#include "../include/mcp23s17.h"
 #include "../include/CAN_MCP2515.h"
 #include "../include/SPI.h"
 #include "../include/usart.h"
@@ -557,6 +558,40 @@ extern "C"
                 PORTD &= ~(1 << uitgang);
             }
         }
+        else if (uitgang < 0x28) /* EX PORT A */
+        {
+            uitgang -= 0x20;
+            uint8_t port =MCP23S17_read_register(0,GPIOA);
+
+            if (state == 0x01) { port |= (1 << uitgang); }
+            else if (state == 0x02)
+            {
+                port ^= (1 << uitgang);
+                CAN_TX_msg.data_byte[2] = (port & (1 << uitgang));
+            }
+            else
+            {
+                port &= ~(1 << uitgang);
+            }
+            MCP23S17_write_register(0,GPIOA, port);
+        }
+        else if (uitgang < 0x30) /* EX PORT B */
+        {
+            uitgang -= 0x28;
+            uint8_t port =MCP23S17_read_register(0,GPIOB);
+
+            if (state == 0x01) { port |= (1 << uitgang); }
+            else if (state == 0x02)
+            {
+                port ^= (1 << uitgang);
+                CAN_TX_msg.data_byte[2] = (port & (1 << uitgang));
+            }
+            else
+            {
+                port &= ~(1 << uitgang);
+            }
+            MCP23S17_write_register(0,GPIOB, port);
+        }/* ToDo 1-7 */
         else
         {
             /* error */
@@ -929,6 +964,65 @@ extern "C"
 
             CAN_echo_id_Adres(mcusr, 0x00);
             prind_serial_number();
+
+            /* EX io */
+            MCP23S17_init();
+            {
+                MCP23S17_write_register(0,IODIRA,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR0A));
+                MCP23S17_write_register(0,IODIRB,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR0B));
+                MCP23S17_write_register(1,IODIRA,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR1A));
+                MCP23S17_write_register(1,IODIRB,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR1B));
+                MCP23S17_write_register(2,IODIRA,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR2A));
+                MCP23S17_write_register(2,IODIRB,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR2B));
+                MCP23S17_write_register(3,IODIRA,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR3A));
+                MCP23S17_write_register(3,IODIRB,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR3B));
+
+                MCP23S17_write_register(4,IODIRA,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR4A));
+                MCP23S17_write_register(4,IODIRB,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR4B));
+                MCP23S17_write_register(5,IODIRA,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR5A));
+                MCP23S17_write_register(5,IODIRB,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR5B));
+                MCP23S17_write_register(6,IODIRA,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR6A));
+                MCP23S17_write_register(6,IODIRB,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR6B));
+                MCP23S17_write_register(7,IODIRA,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR7A));
+                MCP23S17_write_register(7,IODIRB,eeprom_read_byte((uint8_t*) EE_EXTENDED_DDR7B));
+
+                MCP23S17_write_register(0,GPPUA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_0A));
+                MCP23S17_write_register(0,GPPUB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_0B));
+                MCP23S17_write_register(1,GPPUA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_1A));
+                MCP23S17_write_register(1,GPPUB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_1B));
+                MCP23S17_write_register(2,GPPUA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_2A));
+                MCP23S17_write_register(2,GPPUB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_2B));
+                MCP23S17_write_register(3,GPPUA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_3A));
+                MCP23S17_write_register(3,GPPUB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_3B));
+
+                MCP23S17_write_register(4,GPPUA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_4A));
+                MCP23S17_write_register(4,GPPUB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_4B));
+                MCP23S17_write_register(5,GPPUA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_5A));
+                MCP23S17_write_register(5,GPPUB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_5B));
+                MCP23S17_write_register(6,GPPUA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_6A));
+                MCP23S17_write_register(6,GPPUB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_6B));
+                MCP23S17_write_register(7,GPPUA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_7A));
+                MCP23S17_write_register(7,GPPUB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_7B));
+
+                MCP23S17_write_register(0,GPIOA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_0A));
+                MCP23S17_write_register(0,GPIOB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_0B));
+                MCP23S17_write_register(1,GPIOA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_1A));
+                MCP23S17_write_register(1,GPIOB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_1B));
+                MCP23S17_write_register(2,GPIOA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_2A));
+                MCP23S17_write_register(2,GPIOB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_2B));
+                MCP23S17_write_register(3,GPIOA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_3A));
+                MCP23S17_write_register(3,GPIOB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_3B));
+
+                MCP23S17_write_register(4,GPIOA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_4A));
+                MCP23S17_write_register(4,GPIOB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_4B));
+                MCP23S17_write_register(5,GPIOA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_5A));
+                MCP23S17_write_register(5,GPIOB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_5B));
+                MCP23S17_write_register(6,GPIOA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_6A));
+                MCP23S17_write_register(6,GPIOB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_6B));
+                MCP23S17_write_register(7,GPIOA,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_7A));
+                MCP23S17_write_register(7,GPIOB,eeprom_read_byte((uint8_t*) EE_EXTENDED_PORT_7B));
+
+            }
         }
 
         CAN_TX_msg.id           = 0;
