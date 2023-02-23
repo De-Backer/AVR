@@ -12,24 +12,24 @@ void MCP23S17_init(void)
 
     MCP23S17_reset();
     /*
-     * 00101100 = 0x2C
+     * 00101100 = 0x0C
      * Bank   0
      * MIRROR 0
-     * SEQOP  1 address pointer does not increment
-     * DISSLW 1 Slew rate disabled
+     * SEQOP  0 address pointer increments
+     * DISSLW 0 Slew rate enabled
      * HAEN   1 Enables the MCP23S17 address pins.
      * ODR    1 Open-drain output (overrides the INTPOL bit)
      * INTPOL 0 |||||||
      * ------ 0 Unimplemented
 */
-    MCP23S17_write_register(0,IOCONA,0x2C);
-    MCP23S17_write_register(1,IOCONA,0x2C);
-    MCP23S17_write_register(2,IOCONA,0x2C);
-    MCP23S17_write_register(3,IOCONA,0x2C);
-    MCP23S17_write_register(4,IOCONA,0x2C);
-    MCP23S17_write_register(5,IOCONA,0x2C);
-    MCP23S17_write_register(6,IOCONA,0x2C);
-    MCP23S17_write_register(7,IOCONA,0x2C);
+    MCP23S17_write_register(0,IOCONA,0x0C);
+    MCP23S17_write_register(1,IOCONA,0x0C);
+    MCP23S17_write_register(2,IOCONA,0x0C);
+    MCP23S17_write_register(3,IOCONA,0x0C);
+    MCP23S17_write_register(4,IOCONA,0x0C);
+    MCP23S17_write_register(5,IOCONA,0x0C);
+    MCP23S17_write_register(6,IOCONA,0x0C);
+    MCP23S17_write_register(7,IOCONA,0x0C);
 }
 
 void MCP23S17_reset(void)
@@ -43,8 +43,13 @@ void MCP23S17_reset(void)
 
 void MCP23S17_write_register(unsigned char slave_address,unsigned char address, unsigned char value)
 {
+#ifdef PCB_dev
+    uint8_t slave_addres[8]={0x00,0x04,0x02,0x06,0x01,0x05,0x03,0x07};/* Fix PCB fout */
+    uint8_t OpCode = (uint8_t)(slave_addres[slave_address] << 0x01);
+#else
     slave_address &= 0x07;
     unsigned char OpCode = (unsigned char)(slave_address << 0x01);
+#endif
     OpCode |= 0x40;/* write */
     MCP23S17_SELECT();
     spi_write(OpCode);
@@ -56,8 +61,13 @@ void MCP23S17_write_register(unsigned char slave_address,unsigned char address, 
 
 unsigned char MCP23S17_read_register(unsigned char slave_address, unsigned char address)
 {
+#ifdef PCB_dev
+    uint8_t slave_addres[8]={0x00,0x04,0x02,0x06,0x01,0x05,0x03,0x07};/* Fix PCB fout */
+    uint8_t OpCode = (uint8_t)(slave_addres[slave_address] << 0x01);
+#else
     slave_address &= 0x07;
     unsigned char OpCode = (unsigned char)(slave_address << 0x01);
+#endif
     OpCode |= 0x41; /* read */
     MCP23S17_SELECT();
     spi_write(OpCode);

@@ -38,6 +38,8 @@ add_definitions(-DSPI_CS_MCP23S17=0)
 add_definitions(-DRESET_DDR_MCP23S17=DDRB)
 add_definitions(-DRESET_PORT_MCP23S17=PORTB)
 add_definitions(-DRESET_PIN_MCP23S17=3)
+#Fix PCB bug
+add_definitions(-DPCB_dev)
 add_library(MCP23S17 src/mcp23s17.c include/mcp23s17.h)
 
 add_library(SPI src/SPI.c include/SPI.h)
