@@ -921,7 +921,7 @@ extern "C"
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
                     MCP2515_message_TX();
-                    CAN_messag((CAN_Priority_normale | module_adres), 0x01, pin_nr+offset, 0);//echo to self
+                    CAN_messag(module_adres, 0x01, pin_nr+offset, 0);//echo to self
                 }
             } else {
                 //was 0
@@ -943,7 +943,7 @@ extern "C"
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
                     MCP2515_message_TX();
-                    CAN_messag((CAN_Priority_normale | module_adres), 0x01, pin_nr+offset, 1);//echo to self
+                    CAN_messag(module_adres, 0x01, pin_nr+offset, 1);//echo to self
                 }
             }
         }
