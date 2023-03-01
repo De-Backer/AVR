@@ -437,7 +437,9 @@ extern "C"
         CAN_TX_msg.data_byte[6] = data1;
         CAN_TX_msg.data_byte[7] = data2;
 
-        MCP2515_message_TX();
+        while (MCP2515_message_TX()==0) {
+            //0==Error no Transmit buffer empty
+        }
 
         CAN_TX_msg.id           = (0x02000000 | microcontroller_id);
         CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
@@ -452,7 +454,9 @@ extern "C"
         CAN_TX_msg.data_byte[6] = GIT_COMMIT_SHA[6];
         CAN_TX_msg.data_byte[7] = GIT_COMMIT_SHA[7];
 
-        MCP2515_message_TX();
+        while (MCP2515_message_TX()==0) {
+            //0==Error no Transmit buffer empty
+        }
     }
 
     static void USART_echo_id_Adres(uint8_t data1, uint8_t data2)
@@ -654,7 +658,9 @@ extern "C"
             CAN_TX_msg.data_byte[6] = RingBuffer_Remove(&RX_Buffer);
             CAN_TX_msg.data_byte[7] = RingBuffer_Remove(&RX_Buffer);
 
-            MCP2515_message_TX();
+            while (MCP2515_message_TX()==0) {
+                //0==Error no Transmit buffer empty
+            }
         }
         else
         {
@@ -726,7 +732,9 @@ extern "C"
             CAN_TX_msg.data_byte[5] = temp[1];
             CAN_TX_msg.data_byte[6] = temp[2];
             CAN_TX_msg.data_byte[7] = temp[3];
-            MCP2515_message_TX();
+            while (MCP2515_message_TX()==0) {
+                //0==Error no Transmit buffer empty
+            }
         }
         else if (CAN_RX_msg.data_byte[1] == 0x02) /* update & read */
         {
@@ -768,7 +776,9 @@ extern "C"
             CAN_TX_msg.data_byte[5] = temp[1];
             CAN_TX_msg.data_byte[6] = temp[2];
             CAN_TX_msg.data_byte[7] = temp[3];
-            MCP2515_message_TX();
+            while (MCP2515_message_TX()==0) {
+                //0==Error no Transmit buffer empty
+            }
 
             /*load data in ram */
             if (ee_adres == EE_MICROCONTROLLER_ID)
@@ -920,7 +930,9 @@ extern "C"
                     CAN_TX_msg.data_byte[5] = 0;
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
-                    MCP2515_message_TX();
+                    while (MCP2515_message_TX()==0) {
+                        //0==Error no Transmit buffer empty
+                    }
                     CAN_messag(module_adres, 0x01, pin_nr+offset, 0);//echo to self
                 }
             } else {
@@ -942,7 +954,9 @@ extern "C"
                     CAN_TX_msg.data_byte[5] = 0;
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
-                    MCP2515_message_TX();
+                    while (MCP2515_message_TX()==0) {
+                        //0==Error no Transmit buffer empty
+                    }
                     CAN_messag(module_adres, 0x01, pin_nr+offset, 1);//echo to self
                 }
             }
@@ -1240,7 +1254,9 @@ extern "C"
                         CAN_TX_msg.data_byte[5] = 0;
                         CAN_TX_msg.data_byte[6] = 0;
                         CAN_TX_msg.data_byte[7] = 0;
-                        MCP2515_message_TX();
+                        while (MCP2515_message_TX()==0) {
+                            //0==Error no Transmit buffer empty
+                        }
                     }
                 } else if (v_adc_pin[adc_pin_nr]>adc_var) {
                     if((v_adc_pin[adc_pin_nr]-adc_var)>1){
@@ -1258,7 +1274,9 @@ extern "C"
                         CAN_TX_msg.data_byte[5] = 0;
                         CAN_TX_msg.data_byte[6] = 0;
                         CAN_TX_msg.data_byte[7] = 0;
-                        MCP2515_message_TX();
+                        while (MCP2515_message_TX()==0) {
+                            //0==Error no Transmit buffer empty
+                        }
                     }
                 }
 
@@ -1303,7 +1321,9 @@ extern "C"
                                 CAN_TX_msg.data_byte[5] = 0;
                                 CAN_TX_msg.data_byte[6] = 0;
                                 CAN_TX_msg.data_byte[7] = 0;
-                                MCP2515_message_TX();
+                                while (MCP2515_message_TX()==0) {
+                                    //0==Error no Transmit buffer empty
+                                }
                             }
                         }
                     }
@@ -1323,7 +1343,9 @@ extern "C"
                     CAN_TX_msg.data_byte[5] = 0;
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
-                    MCP2515_message_TX();
+                    while (MCP2515_message_TX()==0) {
+                        //0==Error no Transmit buffer empty
+                    }
                 }
                 if(Can_watchdog>10){/* 1 ≃~ 3sec*/
 
@@ -1339,7 +1361,9 @@ extern "C"
                     CAN_TX_msg.data_byte[5] = 0;
                     CAN_TX_msg.data_byte[6] = 0;
                     CAN_TX_msg.data_byte[7] = 0;
-                    MCP2515_message_TX();
+                    while (MCP2515_message_TX()==0) {
+                        //0==Error no Transmit buffer empty
+                    }
 
                     /* 0x40 => deze µc word gereset */
                     CAN_echo_id_Adres(0x40, 0x40);
@@ -1497,7 +1521,9 @@ extern "C"
                             CAN_TX_msg.data_byte[5] = 0;
                             CAN_TX_msg.data_byte[6] = 0;
                             CAN_TX_msg.data_byte[7] = 0;
-                            MCP2515_message_TX();
+                            while (MCP2515_message_TX()==0) {
+                                //0==Error no Transmit buffer empty
+                            }
                             CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
                             CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
                             CAN_TX_msg.rtr          = 0;
@@ -1510,7 +1536,9 @@ extern "C"
                             CAN_TX_msg.data_byte[5] = 0;
                             CAN_TX_msg.data_byte[6] = 0;
                             CAN_TX_msg.data_byte[7] = 0;
-                            MCP2515_message_TX();
+                            while (MCP2515_message_TX()==0) {
+                                //0==Error no Transmit buffer empty
+                            }
 
                         } else {
                             /* test CAN id on list */
