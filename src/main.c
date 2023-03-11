@@ -241,6 +241,10 @@ extern "C"
 #    define EE_all_of_EXTENDED_PORT_7A 81
 #    define EE_all_of_EXTENDED_PORT_7B 82
 
+    /* EEPROM data
+     *
+     */
+#    define EE_MICROCONTROLLER_USART_1 83
     /* Start reset => new IO laden
      * CAN_Priority_config [module_adres]  0x00  0x00  0x02 0x04 0x04
      */
@@ -657,6 +661,26 @@ extern "C"
         else
         {
             RingBuffer_Remove(&RX_Buffer);
+        }
+    }
+
+    static void build_USART_data_block()
+    {
+        uint8_t length=RingBuffer_GetCount(&RX_Buffer_1);
+        if(length>8){
+            length=8;
+        }
+
+        CAN_TX_msg.id           = CAN_Priority_High_USART1 | module_adres;
+        CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+        CAN_TX_msg.rtr          = 0;
+        CAN_TX_msg.length       = length;
+        uint8_t val=0;
+        for (;val<length;++val) {
+            CAN_TX_msg.data_byte[val] = RingBuffer_Remove(&RX_Buffer_1);
+        }
+        while (MCP2515_message_TX()==0) {
+            //0==Error no Transmit buffer empty
         }
     }
 
@@ -1176,6 +1200,12 @@ extern "C"
                 set_port(output,0x01&(PORTD<<pin_nr),0);
         }
         wdt_reset(); /* Reset Watchdog timer*/
+
+        uint8_t  USART1_werking= eeprom_read_byte((uint8_t*) EE_MICROCONTROLLER_USART_1);
+        if(USART1_werking<0x0F)
+        {
+            init_USART1(USART1_werking);
+        }
         for (;;)
         {
             /* loop */;
@@ -1370,10 +1400,17 @@ extern "C"
             }
             wdt_reset(); /* Reset Watchdog timer*/
             Receive_USART0();
-
             /* verwerk de RX USART0 buffer */
             uint8_t RX_BufferCount = RingBuffer_GetCount(&RX_Buffer);
             if (RX_BufferCount > 15) { build_can_block(); }
+
+            if(USART1_werking<0x0F)
+            {
+                Receive_USART1();
+                /* verwerk de RX USART1 buffer */
+                uint8_t RX_BufferCount_1 = RingBuffer_GetCount(&RX_Buffer_1);
+                if (RX_BufferCount_1 > 7) { build_USART_data_block(); }
+            }
 
             if (MCP2515_check_for_incoming_message())
             {
