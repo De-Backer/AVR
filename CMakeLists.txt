@@ -46,10 +46,12 @@ add_library(SPI src/SPI.c include/SPI.h)
 
 add_library(BUFFER src/RingBuffer.c include/RingBuffer.h)
 
+add_library(EBUSD src/ebusd.c include/ebusd.h)
+
 # Create one target
 add_executable(AVR src/main.c)
 
-target_link_libraries(AVR PRIVATE USART BUFFER CAN_MCP2515 MCP23S17 SPI)
+target_link_libraries(AVR PRIVATE USART BUFFER CAN_MCP2515 MCP23S17 SPI EBUSD)
 
 include(cmake/avr_post.cmake)
 
