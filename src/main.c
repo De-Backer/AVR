@@ -485,6 +485,26 @@ extern "C"
         Transmit_USART0(data2);
     }
 
+    static void reset_de_ic()
+    {
+        Transmit_USART0(10); /* new line */
+        char* Buffer = "- reset -";
+        while (*Buffer) { Transmit_USART0(*Buffer++); }
+        if (CAN_RX_msg.data_byte[1] == 0x04)
+        {
+            wdt_enable(WDTO_15MS); /* Watchdog Reset after
+                                      15mSec */
+
+            /* 0x40 => deze µc word gereset */
+            CAN_echo_id_Adres(0x40, 0x40);
+            USART_echo_id_Adres(0x40, 0x40);
+
+            for (;;)
+            { /* Watchdog Reset */
+            }
+        }
+    }
+
     static void set_port(uint8_t uitgang, uint8_t state, uint8_t duur)
     {
         CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
@@ -668,25 +688,6 @@ extern "C"
     static void build_USART_data_block()
     {
         static uint8_t status=0x00;
-        if(RingBuffer_IsFull(&RX_Buffer_1)){
-            CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
-            CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
-            CAN_TX_msg.rtr          = 0;
-            CAN_TX_msg.length       = 8;
-            CAN_TX_msg.data_byte[0] = 0xff;
-            CAN_TX_msg.data_byte[1] = status;
-            CAN_TX_msg.data_byte[2] = RingBuffer_GetCount(&RX_Buffer_1);
-            CAN_TX_msg.data_byte[3] = RingBuffer_Peek(&RX_Buffer_1);
-            CAN_TX_msg.data_byte[4] = 0x00;
-            CAN_TX_msg.data_byte[5] = 0x00;
-            CAN_TX_msg.data_byte[6] = EBUSD_telegram_master.Slave_NN;
-            CAN_TX_msg.data_byte[7] = EBUSD_telegram_master.NN;
-            while (MCP2515_message_TX()==0) {
-                //0==Error no Transmit buffer empty
-            }
-            for (;;) {
-            }
-        }
 
         if(status==0x0f){
             if(RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN){
@@ -1648,6 +1649,13 @@ extern "C"
                     {
                         CAN_echo_id_Adres(0x00, 0x00);
                     }
+                    else if (CAN_RX_msg.id == 0x1fe)
+                    {
+                        if (CAN_RX_msg.data_byte[0] == module_adres) /* reset */
+                        {
+                            reset_de_ic();
+                        }
+                    }
 
                     /*  config */
                     else if (CAN_RX_msg.id == (CAN_Priority_config | module_adres))
@@ -1670,22 +1678,7 @@ extern "C"
                         }
                         else if (CAN_RX_msg.data_byte[0] == 0x04) /* reset */
                         {
-                            Transmit_USART0(10); /* new line */
-                            char* Buffer = "- reset -";
-                            while (*Buffer) { Transmit_USART0(*Buffer++); }
-                            if (CAN_RX_msg.data_byte[1] == 0x04)
-                            {
-                                wdt_enable(WDTO_15MS); /* Watchdog Reset after
-                                                          15mSec */
-
-                                /* 0x40 => deze µc word gereset */
-                                CAN_echo_id_Adres(0x40, 0x40);
-                                USART_echo_id_Adres(0x40, 0x40);
-
-                                for (;;)
-                                { /* Watchdog Reset */
-                                }
-                            }
+                            reset_de_ic();
                         }
                         else
                         {                        /* error in code µc */
