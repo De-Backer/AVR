@@ -17,16 +17,16 @@ extern "C"
 //--->A master adres
 //--->P prioriteidklasse
 #define EBUSD_MASTER_01 0x00
-#define EBUSD_MASTER_02 0x10 //--
+#define EBUSD_MASTER_02 0x10 //CAN id 0x01 ZZ PB SB
 #define EBUSD_MASTER_03 0x30
 #define EBUSD_MASTER_04 0x70
 #define EBUSD_MASTER_05 0xf0
 #define EBUSD_MASTER_06 0x01
 #define EBUSD_MASTER_07 0x11
 #define EBUSD_MASTER_08 0x31
-#define EBUSD_MASTER_09 0x71 //--
+#define EBUSD_MASTER_09 0x71 //CAN id 0x08 ZZ PB SB
 #define EBUSD_MASTER_10 0xf1
-#define EBUSD_MASTER_11 0x03 //--
+#define EBUSD_MASTER_11 0x03 //CAN id 0x0A ZZ PB SB
 #define EBUSD_MASTER_12 0x13
 #define EBUSD_MASTER_13 0x33
 #define EBUSD_MASTER_14 0x73
@@ -51,7 +51,7 @@ extern "C"
 #define EBUSD_INFO      0x03
 
 
-typedef struct EBUSD_telegram
+struct EBUSD_telegram
 {
     unsigned char QQ;//master adres max 25 verscillend adressen
     unsigned char ZZ;//bestemmings adres max 254 verscillend adressen
@@ -68,7 +68,7 @@ typedef struct EBUSD_telegram
 
 };
 
-struct EBUSD_telegram EBUSD_telegram_master;
+extern struct EBUSD_telegram EBUSD_telegram_master;
 
 unsigned long ebusd_To_CAN_id();
 
