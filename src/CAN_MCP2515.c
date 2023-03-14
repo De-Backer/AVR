@@ -324,11 +324,11 @@ unsigned char MCP2515_message_TX(void)
     {
     case CAN_EXTENDED_FRAME:
     {
-        TXBnSIDH = (CAN_TX_msg.id >> 21);
-        TXBnSIDL = ((CAN_TX_msg.id >> 13) & SIDL_SID);
-        TXBnSIDL |= ((CAN_TX_msg.id >> 16) & SIDL_EID);
-        TXBnEID8 = (CAN_TX_msg.id >> 8);
-        TXBnEID0 = CAN_TX_msg.id;
+        TXBnSIDH  =  (unsigned char)(CAN_TX_msg.id >> 21);
+        TXBnSIDL  = ((unsigned char)(CAN_TX_msg.id >> 13) & SIDL_SID);
+        TXBnSIDL |= ((unsigned char)(CAN_TX_msg.id >> 16) & SIDL_EID);
+        TXBnEID8  =  (unsigned char)(CAN_TX_msg.id >> 8);
+        TXBnEID0  =  (unsigned char) CAN_TX_msg.id;
 
         TXBnSIDL |= (1 << IDE);
 
@@ -339,8 +339,8 @@ unsigned char MCP2515_message_TX(void)
 
     default:
     {
-        TXBnSIDH = (CAN_TX_msg.id >> 3);
-        TXBnSIDL = ((CAN_TX_msg.id << 5) & SIDL_SID);
+        TXBnSIDH =  (unsigned char)(CAN_TX_msg.id >> 3);
+        TXBnSIDL = ((unsigned char)(CAN_TX_msg.id << 5) & SIDL_SID);
         TXBnEID8 = 0x00;
         TXBnEID0 = 0x00;
 
@@ -576,11 +576,11 @@ void MCP2515_set_filter(
     {
     case CAN_EXTENDED_FRAME:
     {
-        RXFnSIDH = (filter_id >> 21);
-        RXFnSIDL = ((filter_id >> 13) & SIDL_SID);
-        RXFnSIDL |= ((filter_id >> 16) & SIDL_EID);
-        RXFnEID8 = (filter_id >> 8);
-        RXFnEID0 = filter_id;
+        RXFnSIDH  =  (unsigned char)(filter_id >> 21);
+        RXFnSIDL  = ((unsigned char)(filter_id >> 13) & SIDL_SID);
+        RXFnSIDL |= ((unsigned char)(filter_id >> 16) & SIDL_EID);
+        RXFnEID8  =  (unsigned char)(filter_id >> 8);
+        RXFnEID0  =  (unsigned char) filter_id;
 
         RXFnSIDL |= (1 << EXIDE);
 
@@ -589,8 +589,8 @@ void MCP2515_set_filter(
 
     default:
     {
-        RXFnSIDH = (filter_id >> 3);
-        RXFnSIDL = ((filter_id << 5) & SIDL_SID);
+        RXFnSIDH =  (unsigned char)(filter_id >> 3);
+        RXFnSIDL = ((unsigned char)(filter_id << 5) & SIDL_SID);
         RXFnEID8 = 0x00;
         RXFnEID0 = 0x00;
 
@@ -637,11 +637,11 @@ void MCP2515_set_mask(
     {
     case CAN_EXTENDED_FRAME:
     {
-        RXMnSIDH = (mask_id >> 21);
-        RXMnSIDL = ((mask_id >> 13) & SIDL_SID);
-        RXMnSIDL |= ((mask_id >> 16) & SIDL_EID);
-        RXMnEID8 = (mask_id >> 8);
-        RXMnEID0 = mask_id;
+        RXMnSIDH  =  (unsigned char)(mask_id >> 21);
+        RXMnSIDL  = ((unsigned char)(mask_id >> 13) & SIDL_SID);
+        RXMnSIDL |= ((unsigned char)(mask_id >> 16) & SIDL_EID);
+        RXMnEID8  =  (unsigned char)(mask_id >> 8);
+        RXMnEID0  =  (unsigned char) mask_id;
 
         RXMnSIDL |= (1 << EXIDE);
 
@@ -650,7 +650,7 @@ void MCP2515_set_mask(
 
     default:
     {
-        RXMnSIDH = (mask_id >> 3);
+        RXMnSIDH = (unsigned char)(mask_id >> 3);
         RXMnSIDL = ((mask_id << 5) & SIDL_SID);
         RXMnEID8 = 0x00;
         RXMnEID0 = 0x00;
