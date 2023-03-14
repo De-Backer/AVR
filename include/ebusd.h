@@ -70,6 +70,8 @@ typedef struct EBUSD_telegram
 
 struct EBUSD_telegram EBUSD_telegram_master;
 
+unsigned long ebusd_To_CAN_id();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
