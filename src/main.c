@@ -719,26 +719,36 @@ struct EBUSD_telegram EBUSD_telegram_master;
                 }
                RingBuffer_Remove(&RX_Buffer_1);
             }
-            if(RingBuffer_GetCount(&RX_Buffer_1)<7)
+            if(RingBuffer_GetCount(&RX_Buffer_1)<5)
             {
                 // nog niet alle info.
                 return;
             }
-            EBUSD_telegram_master.QQ=RingBuffer_Remove(&RX_Buffer_1);
-            EBUSD_telegram_master.ZZ=RingBuffer_Remove(&RX_Buffer_1);
             if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
             {
                 status=0x00;
                 return;
             }
-            EBUSD_telegram_master.PB=RingBuffer_Remove(&RX_Buffer_1);
+            EBUSD_telegram_master.QQ=RingBuffer_Remove(&RX_Buffer_1);//1
             if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
             {
                 status=0x00;
                 return;
             }
-            EBUSD_telegram_master.SB=RingBuffer_Remove(&RX_Buffer_1);
-            EBUSD_telegram_master.NN=RingBuffer_Remove(&RX_Buffer_1);
+            EBUSD_telegram_master.ZZ=RingBuffer_Remove(&RX_Buffer_1);//2
+            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+            {
+                status=0x00;
+                return;
+            }
+            EBUSD_telegram_master.PB=RingBuffer_Remove(&RX_Buffer_1);//3
+            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+            {
+                status=0x00;
+                return;
+            }
+            EBUSD_telegram_master.SB=RingBuffer_Remove(&RX_Buffer_1);//4
+            EBUSD_telegram_master.NN=RingBuffer_Remove(&RX_Buffer_1);//5
             if(EBUSD_telegram_master.NN<16)
             {
                 status=0x01;
@@ -751,7 +761,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
             }
         }
         if(status==0x01){
-            if((EBUSD_telegram_master.NN+2)>RingBuffer_GetCount(&RX_Buffer_1))
+            if((EBUSD_telegram_master.NN+3)>RingBuffer_GetCount(&RX_Buffer_1))
             {
                 return;
             }
@@ -761,6 +771,28 @@ struct EBUSD_telegram EBUSD_telegram_master;
                 EBUSD_telegram_master.data_byte[val]=RingBuffer_Remove(&RX_Buffer_1);
             }
             EBUSD_telegram_master.CRC=RingBuffer_Remove(&RX_Buffer_1);
+            if(RingBuffer_Peek(&RX_Buffer_1)==EBUSD_SYN)
+            {
+                CAN_TX_msg.id           = ebusd_To_CAN_id();
+                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+                CAN_TX_msg.rtr          = 0;
+                uint8_t val=0;
+                uint8_t length=EBUSD_telegram_master.NN;
+                if(length>7){
+                    length=7;
+                }
+                CAN_TX_msg.length       = length+1;
+                CAN_TX_msg.data_byte[0] = 0xf0;
+
+                for (;val<length;++val) {
+                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val];
+                }
+                while (MCP2515_message_TX()==0) {
+                    //0==Error no Transmit buffer empty
+                }
+                status=0x00;
+                return;
+            }
             EBUSD_telegram_master.Slave_ACK=RingBuffer_Remove(&RX_Buffer_1);
 
             if(EBUSD_telegram_master.Slave_ACK==EBUSD_ACK_ok)
@@ -805,9 +837,12 @@ struct EBUSD_telegram EBUSD_telegram_master;
             status=0x02;//0x0f
         }
         if(status==0x02){
+            if(RingBuffer_IsEmpty(&RX_Buffer_1)){
+                return;
+            }
 
             if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN){
-                status=0x00;
+                status=0x00;//master master telegram
                 return;
             }
             //nu nog de data van de slave
@@ -815,12 +850,11 @@ struct EBUSD_telegram EBUSD_telegram_master;
                 return;
             }
             uint8_t Slave_NN=RingBuffer_Peek(&RX_Buffer_1)+4;
-
-            if(Slave_NN>16){
-                status=0x0f;
+            if(RingBuffer_GetCount(&RX_Buffer_1)<Slave_NN){
                 return;
             }
-            if(RingBuffer_GetCount(&RX_Buffer_1)<Slave_NN){
+            if(Slave_NN>16){
+                status=0x0f;
                 return;
             }
             EBUSD_telegram_master.Slave_NN=RingBuffer_Remove(&RX_Buffer_1);
@@ -1603,7 +1637,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
             {
                 Receive_USART1();
                 /* verwerk de RX USART1 buffer */
-                if (RingBuffer_GetCount(&RX_Buffer_1) > 4)
+                if(!RingBuffer_IsEmpty(&RX_Buffer_1))
                 { build_USART_data_block(); }
             }
 
