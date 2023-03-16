@@ -775,7 +775,22 @@ struct EBUSD_telegram EBUSD_telegram_master;
 
         if(status>0x04 && status<(EBUSD_telegram_master.NN+0x05) && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
         {
-            //ToDo de AAh en 9..
+            //ToDo de AAh en A9
+            // A9 = A9 00
+            // AA = A9 01
+            if(RingBuffer_Peek(&RX_Buffer_1)==0xa9){
+                if(RingBuffer_GetCount(&RX_Buffer_1)<2){
+                    return;// er moeten 2 byts zijn
+                }
+                RingBuffer_Remove(&RX_Buffer_1);
+                if(RingBuffer_Remove(&RX_Buffer_1)==0x01){
+                    EBUSD_telegram_master.data_byte[(status-0x05)]=0xaa;
+                } else {
+                    EBUSD_telegram_master.data_byte[(status-0x05)]=0xa9;
+                }
+                ++status;
+                return;
+            }
             EBUSD_telegram_master.data_byte[(status-0x05)]=RingBuffer_Remove(&RX_Buffer_1);
             ++status;// QQ ZZ PB SB NN ok get data
         }
@@ -795,6 +810,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
             if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
             {
                 //is een brotcast
+                RingBuffer_Remove(&RX_Buffer_1);
                 uint8_t length=EBUSD_telegram_master.NN;
                 uint8_t can_Number=0;
                 while (length>0) {
@@ -806,7 +822,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
                     CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
                     CAN_TX_msg.rtr          = 0;
                     CAN_TX_msg.length       = te_versturen+1;
-                    CAN_TX_msg.data_byte[0] = 0xf0+can_Number;
+                    CAN_TX_msg.data_byte[0] = 0xF0+can_Number;
                     uint8_t val=0;
                     for (;val<te_versturen;++val) {
                         CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+(can_Number*7)];
@@ -817,6 +833,16 @@ struct EBUSD_telegram EBUSD_telegram_master;
                     length = length - val;
                     ++can_Number;
                 }
+                EBUSD_telegram_master.QQ=0;
+                EBUSD_telegram_master.ZZ=0;
+                EBUSD_telegram_master.PB=0;
+                EBUSD_telegram_master.SB=0;
+                EBUSD_telegram_master.NN=0;
+                EBUSD_telegram_master.ACK=0;
+                EBUSD_telegram_master.CRC=0;
+                EBUSD_telegram_master.Slave_NN=0;
+                EBUSD_telegram_master.Slave_ACK=0;
+                EBUSD_telegram_master.Slave_CRC=0;
                 status=0x00;
                 return;
             }
@@ -832,6 +858,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
             {
                 //is een master-master
                 if(EBUSD_telegram_master.Slave_ACK==EBUSD_ACK_ok){
+                    RingBuffer_Remove(&RX_Buffer_1);
                     uint8_t length=EBUSD_telegram_master.NN;
                     uint8_t can_Number=0;
                     while (length>0) {
@@ -843,7 +870,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
                         CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
                         CAN_TX_msg.rtr          = 0;
                         CAN_TX_msg.length       = te_versturen+1;
-                        CAN_TX_msg.data_byte[0] = 0xf0+can_Number;
+                        CAN_TX_msg.data_byte[0] = 0xF0+can_Number;
                         uint8_t val=0;
                         for (;val<te_versturen;++val) {
                             CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+(can_Number*7)];
@@ -866,7 +893,22 @@ struct EBUSD_telegram EBUSD_telegram_master;
 
         if(status>0x81 && status<(EBUSD_telegram_master.Slave_NN+0x82) && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
         {
-            //ToDo de AAh en 9..
+            //ToDo de AAh en A9
+            // A9 = A9 00
+            // AA = A9 01
+            if(RingBuffer_Peek(&RX_Buffer_1)==0xa9){
+                if(RingBuffer_GetCount(&RX_Buffer_1)<2){
+                    return;// er moeten 2 byts zijn
+                }
+                RingBuffer_Remove(&RX_Buffer_1);
+                if(RingBuffer_Remove(&RX_Buffer_1)==0x01){
+                    EBUSD_telegram_master.Slave_data_byte[(status-0x82)]=0xaa;
+                } else {
+                    EBUSD_telegram_master.Slave_data_byte[(status-0x82)]=0xa9;
+                }
+                ++status;
+                return;
+            }
             EBUSD_telegram_master.Slave_data_byte[status-0x82]=RingBuffer_Remove(&RX_Buffer_1);
             ++status;// QQ ZZ PB SB NN ok get data
         }
@@ -924,257 +966,257 @@ struct EBUSD_telegram EBUSD_telegram_master;
 
     }
 
-    static void build_USART_data_block()
-    {
-        if(RingBuffer_IsEmpty(&RX_Buffer_1))
-        {
-            return;
-        }
-        static uint8_t status=0x00;
-        static uint8_t error_cont=0x00;
+//    static void build_USART_data_block()
+//    {
+//        if(RingBuffer_IsEmpty(&RX_Buffer_1))
+//        {
+//            return;
+//        }
+//        static uint8_t status=0x00;
+//        static uint8_t error_cont=0x00;
 
-        if(status==0x0f){
-            if(RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN){
-                while ((RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN))
-                {
-                    ++error_cont;
-                    if(error_cont==0x01){
-                        CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
-                        CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
-                        CAN_TX_msg.rtr          = 0;
-                        CAN_TX_msg.length       = 8;
-                        CAN_TX_msg.data_byte[0] = 0x00;//error
-                        CAN_TX_msg.data_byte[1] = RingBuffer_GetCount(&RX_Buffer_1);
-                        CAN_TX_msg.data_byte[2] = status;
-                        CAN_TX_msg.data_byte[3] = EBUSD_telegram_master.NN;
-                        CAN_TX_msg.data_byte[4] = EBUSD_telegram_master.Slave_NN;
-                        CAN_TX_msg.data_byte[5] = 0;
-                        CAN_TX_msg.data_byte[6] = 0;
-                        CAN_TX_msg.data_byte[7] = 0;
-                        while (MCP2515_message_TX()==0) {
-                            //0==Error no Transmit buffer empty
-                        }
-                    }
-                    if(RingBuffer_IsEmpty(&RX_Buffer_1))
-                    {
-                        return;
-                    }
-                   RingBuffer_Remove(&RX_Buffer_1);
-                }
-            }
-            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN){
-                status=0x00;
-            }
-        }
-        if(status==0x00){
-            while (RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
-            {
-                if(RingBuffer_IsEmpty(&RX_Buffer_1))
-                {
-                    return;
-                }
-               RingBuffer_Remove(&RX_Buffer_1);
-            }
-            if(RingBuffer_GetCount(&RX_Buffer_1)<5)
-            {
-                // nog niet alle info.
-                return;
-            }
-            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
-            {
-                status=0x00;
-                return;
-            }
-            EBUSD_telegram_master.QQ=0;
-            EBUSD_telegram_master.ZZ=0;
-            EBUSD_telegram_master.PB=0;
-            EBUSD_telegram_master.SB=0;
-            EBUSD_telegram_master.NN=0;
-            EBUSD_telegram_master.ACK=0;
-            EBUSD_telegram_master.CRC=0;
-            EBUSD_telegram_master.Slave_NN=0;
-            EBUSD_telegram_master.Slave_ACK=0;
-            EBUSD_telegram_master.Slave_CRC=0;
+//        if(status==0x0f){
+//            if(RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN){
+//                while ((RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN))
+//                {
+//                    ++error_cont;
+//                    if(error_cont==0x01){
+//                        CAN_TX_msg.id           = CAN_Priority_normale | module_adres;
+//                        CAN_TX_msg.ext_id       = CAN_STANDARD_FRAME;
+//                        CAN_TX_msg.rtr          = 0;
+//                        CAN_TX_msg.length       = 8;
+//                        CAN_TX_msg.data_byte[0] = 0x00;//error
+//                        CAN_TX_msg.data_byte[1] = RingBuffer_GetCount(&RX_Buffer_1);
+//                        CAN_TX_msg.data_byte[2] = status;
+//                        CAN_TX_msg.data_byte[3] = EBUSD_telegram_master.NN;
+//                        CAN_TX_msg.data_byte[4] = EBUSD_telegram_master.Slave_NN;
+//                        CAN_TX_msg.data_byte[5] = 0;
+//                        CAN_TX_msg.data_byte[6] = 0;
+//                        CAN_TX_msg.data_byte[7] = 0;
+//                        while (MCP2515_message_TX()==0) {
+//                            //0==Error no Transmit buffer empty
+//                        }
+//                    }
+//                    if(RingBuffer_IsEmpty(&RX_Buffer_1))
+//                    {
+//                        return;
+//                    }
+//                   RingBuffer_Remove(&RX_Buffer_1);
+//                }
+//            }
+//            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN){
+//                status=0x00;
+//            }
+//        }
+//        if(status==0x00){
+//            while (RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+//            {
+//                if(RingBuffer_IsEmpty(&RX_Buffer_1))
+//                {
+//                    return;
+//                }
+//               RingBuffer_Remove(&RX_Buffer_1);
+//            }
+//            if(RingBuffer_GetCount(&RX_Buffer_1)<5)
+//            {
+//                // nog niet alle info.
+//                return;
+//            }
+//            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+//            {
+//                status=0x00;
+//                return;
+//            }
+//            EBUSD_telegram_master.QQ=0;
+//            EBUSD_telegram_master.ZZ=0;
+//            EBUSD_telegram_master.PB=0;
+//            EBUSD_telegram_master.SB=0;
+//            EBUSD_telegram_master.NN=0;
+//            EBUSD_telegram_master.ACK=0;
+//            EBUSD_telegram_master.CRC=0;
+//            EBUSD_telegram_master.Slave_NN=0;
+//            EBUSD_telegram_master.Slave_ACK=0;
+//            EBUSD_telegram_master.Slave_CRC=0;
 
-            EBUSD_telegram_master.QQ=RingBuffer_Remove(&RX_Buffer_1);//1
-            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
-            {
-                status=0x00;
-                return;
-            }
-            EBUSD_telegram_master.ZZ=RingBuffer_Remove(&RX_Buffer_1);//2
-            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
-            {
-                status=0x00;
-                return;
-            }
-            EBUSD_telegram_master.PB=RingBuffer_Remove(&RX_Buffer_1);//3
-            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
-            {
-                status=0x00;
-                return;
-            }
-            EBUSD_telegram_master.SB=RingBuffer_Remove(&RX_Buffer_1);//4
-            EBUSD_telegram_master.NN=RingBuffer_Remove(&RX_Buffer_1);//5
-            if(EBUSD_telegram_master.NN<17)
-            {
-                status=0x01;
-            }
-            else
-            {
-                EBUSD_telegram_master.NN=0x00;
-                status=0x0f;
-                return;
-            }
-        }
-        if(status==0x01){
-            if((EBUSD_telegram_master.NN+3)>RingBuffer_GetCount(&RX_Buffer_1))
-            {
-                return;
-            }
-            uint8_t val=0;
-            for (;val<EBUSD_telegram_master.NN;++val)
-            {
-                EBUSD_telegram_master.data_byte[val]=RingBuffer_Remove(&RX_Buffer_1);
-            }
-            EBUSD_telegram_master.CRC=RingBuffer_Remove(&RX_Buffer_1);
-            if(RingBuffer_Peek(&RX_Buffer_1)==EBUSD_SYN)
-            {
-                CAN_TX_msg.id           = ebusd_To_CAN_id();
-                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                CAN_TX_msg.rtr          = 0;
-                uint8_t val=0;
-                uint8_t length=EBUSD_telegram_master.NN;
-                if(length>7){
-                    length=7;
-                }
-                CAN_TX_msg.length       = length+1;
-                CAN_TX_msg.data_byte[0] = 0xf0;
+//            EBUSD_telegram_master.QQ=RingBuffer_Remove(&RX_Buffer_1);//1
+//            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+//            {
+//                status=0x00;
+//                return;
+//            }
+//            EBUSD_telegram_master.ZZ=RingBuffer_Remove(&RX_Buffer_1);//2
+//            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+//            {
+//                status=0x00;
+//                return;
+//            }
+//            EBUSD_telegram_master.PB=RingBuffer_Remove(&RX_Buffer_1);//3
+//            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+//            {
+//                status=0x00;
+//                return;
+//            }
+//            EBUSD_telegram_master.SB=RingBuffer_Remove(&RX_Buffer_1);//4
+//            EBUSD_telegram_master.NN=RingBuffer_Remove(&RX_Buffer_1);//5
+//            if(EBUSD_telegram_master.NN<17)
+//            {
+//                status=0x01;
+//            }
+//            else
+//            {
+//                EBUSD_telegram_master.NN=0x00;
+//                status=0x0f;
+//                return;
+//            }
+//        }
+//        if(status==0x01){
+//            if((EBUSD_telegram_master.NN+3)>RingBuffer_GetCount(&RX_Buffer_1))
+//            {
+//                return;
+//            }
+//            uint8_t val=0;
+//            for (;val<EBUSD_telegram_master.NN;++val)
+//            {
+//                EBUSD_telegram_master.data_byte[val]=RingBuffer_Remove(&RX_Buffer_1);
+//            }
+//            EBUSD_telegram_master.CRC=RingBuffer_Remove(&RX_Buffer_1);
+//            if(RingBuffer_Peek(&RX_Buffer_1)==EBUSD_SYN)
+//            {
+//                CAN_TX_msg.id           = ebusd_To_CAN_id();
+//                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+//                CAN_TX_msg.rtr          = 0;
+//                uint8_t val=0;
+//                uint8_t length=EBUSD_telegram_master.NN;
+//                if(length>7){
+//                    length=7;
+//                }
+//                CAN_TX_msg.length       = length+1;
+//                CAN_TX_msg.data_byte[0] = 0xf0;
 
-                for (;val<length;++val) {
-                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val];
-                }
-                while (MCP2515_message_TX()==0) {
-                    //0==Error no Transmit buffer empty
-                }
-                status=0x00;
-                return;
-            }
-            EBUSD_telegram_master.Slave_ACK=RingBuffer_Remove(&RX_Buffer_1);
+//                for (;val<length;++val) {
+//                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val];
+//                }
+//                while (MCP2515_message_TX()==0) {
+//                    //0==Error no Transmit buffer empty
+//                }
+//                status=0x00;
+//                return;
+//            }
+//            EBUSD_telegram_master.Slave_ACK=RingBuffer_Remove(&RX_Buffer_1);
 
-            if(EBUSD_telegram_master.Slave_ACK==EBUSD_ACK_ok)
-            {
-                CAN_TX_msg.id           = ebusd_To_CAN_id();
-                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                CAN_TX_msg.rtr          = 0;
-                uint8_t val=0;
-                uint8_t length=EBUSD_telegram_master.NN;
-                if(length>7){
-                    length=7;
-                }
-                CAN_TX_msg.length       = length+1;
-                CAN_TX_msg.data_byte[0] = 0xf0;
+//            if(EBUSD_telegram_master.Slave_ACK==EBUSD_ACK_ok)
+//            {
+//                CAN_TX_msg.id           = ebusd_To_CAN_id();
+//                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+//                CAN_TX_msg.rtr          = 0;
+//                uint8_t val=0;
+//                uint8_t length=EBUSD_telegram_master.NN;
+//                if(length>7){
+//                    length=7;
+//                }
+//                CAN_TX_msg.length       = length+1;
+//                CAN_TX_msg.data_byte[0] = 0xf0;
 
-                for (;val<length;++val) {
-                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val];
-                }
-                while (MCP2515_message_TX()==0) {
-                    //0==Error no Transmit buffer empty
-                }
-                if(EBUSD_telegram_master.NN>7){
-                    CAN_TX_msg.id           = ebusd_To_CAN_id();
-                    CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                    CAN_TX_msg.rtr          = 0;
-                    val=0;
-                    length=EBUSD_telegram_master.NN-7;
-                    if(length>7){
-                        length=7;
-                    }
-                    CAN_TX_msg.length       = length+1;
-                    CAN_TX_msg.data_byte[0] = 0xf1;
-                    for (;val<length;++val) {
-                        CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+7];
-                    }
-                    while (MCP2515_message_TX()==0) {
-                        //0==Error no Transmit buffer empty
-                    }
-                }
+//                for (;val<length;++val) {
+//                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val];
+//                }
+//                while (MCP2515_message_TX()==0) {
+//                    //0==Error no Transmit buffer empty
+//                }
+//                if(EBUSD_telegram_master.NN>7){
+//                    CAN_TX_msg.id           = ebusd_To_CAN_id();
+//                    CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+//                    CAN_TX_msg.rtr          = 0;
+//                    val=0;
+//                    length=EBUSD_telegram_master.NN-7;
+//                    if(length>7){
+//                        length=7;
+//                    }
+//                    CAN_TX_msg.length       = length+1;
+//                    CAN_TX_msg.data_byte[0] = 0xf1;
+//                    for (;val<length;++val) {
+//                        CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+7];
+//                    }
+//                    while (MCP2515_message_TX()==0) {
+//                        //0==Error no Transmit buffer empty
+//                    }
+//                }
 
-            }
-            status=0x02;//0x0f
-        }
-        if(status==0x02){
-            if(RingBuffer_IsEmpty(&RX_Buffer_1)){
-                return;
-            }
+//            }
+//            status=0x02;//0x0f
+//        }
+//        if(status==0x02){
+//            if(RingBuffer_IsEmpty(&RX_Buffer_1)){
+//                return;
+//            }
 
-            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN){
-                status=0x00;//master master telegram
-                return;
-            }
-            //nu nog de data van de slave
-            if(RingBuffer_GetCount(&RX_Buffer_1)<2){
-                return;
-            }
-            uint8_t Slave_NN=RingBuffer_Peek(&RX_Buffer_1)+4;
-            if(RingBuffer_GetCount(&RX_Buffer_1)<Slave_NN){
-                return;
-            }
-            EBUSD_telegram_master.Slave_NN=RingBuffer_Remove(&RX_Buffer_1);
-            if(EBUSD_telegram_master.Slave_NN>17){
-                EBUSD_telegram_master.Slave_NN=0x00;
-                status=0x0f;
-                return;
-            }
+//            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN){
+//                status=0x00;//master master telegram
+//                return;
+//            }
+//            //nu nog de data van de slave
+//            if(RingBuffer_GetCount(&RX_Buffer_1)<2){
+//                return;
+//            }
+//            uint8_t Slave_NN=RingBuffer_Peek(&RX_Buffer_1)+4;
+//            if(RingBuffer_GetCount(&RX_Buffer_1)<Slave_NN){
+//                return;
+//            }
+//            EBUSD_telegram_master.Slave_NN=RingBuffer_Remove(&RX_Buffer_1);
+//            if(EBUSD_telegram_master.Slave_NN>17){
+//                EBUSD_telegram_master.Slave_NN=0x00;
+//                status=0x0f;
+//                return;
+//            }
 
-            uint8_t val=0;
-            for (;val<EBUSD_telegram_master.Slave_NN;++val) {
-                EBUSD_telegram_master.Slave_data_byte[val]=RingBuffer_Remove(&RX_Buffer_1);
-            }
-            EBUSD_telegram_master.Slave_CRC=RingBuffer_Remove(&RX_Buffer_1);
-            EBUSD_telegram_master.ACK=RingBuffer_Remove(&RX_Buffer_1);
-            if(EBUSD_telegram_master.ACK==EBUSD_ACK_ok){
+//            uint8_t val=0;
+//            for (;val<EBUSD_telegram_master.Slave_NN;++val) {
+//                EBUSD_telegram_master.Slave_data_byte[val]=RingBuffer_Remove(&RX_Buffer_1);
+//            }
+//            EBUSD_telegram_master.Slave_CRC=RingBuffer_Remove(&RX_Buffer_1);
+//            EBUSD_telegram_master.ACK=RingBuffer_Remove(&RX_Buffer_1);
+//            if(EBUSD_telegram_master.ACK==EBUSD_ACK_ok){
 
-                CAN_TX_msg.id           = ebusd_To_CAN_id();
-                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                CAN_TX_msg.rtr          = 0;
-                uint8_t val=0;
-                uint8_t length=EBUSD_telegram_master.Slave_NN;
-                if(length>7){
-                    length=7;
-                }
-                CAN_TX_msg.length       = length+1;
-                CAN_TX_msg.data_byte[0] = 0xf3;
+//                CAN_TX_msg.id           = ebusd_To_CAN_id();
+//                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+//                CAN_TX_msg.rtr          = 0;
+//                uint8_t val=0;
+//                uint8_t length=EBUSD_telegram_master.Slave_NN;
+//                if(length>7){
+//                    length=7;
+//                }
+//                CAN_TX_msg.length       = length+1;
+//                CAN_TX_msg.data_byte[0] = 0xf3;
 
-                for (;val<length;++val) {
-                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.Slave_data_byte[val];
-                }
-                while (MCP2515_message_TX()==0) {
-                    //0==Error no Transmit buffer empty
-                }
-                if(EBUSD_telegram_master.Slave_NN>7){
-                    CAN_TX_msg.id           = ebusd_To_CAN_id();
-                    CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                    CAN_TX_msg.rtr          = 0;
-                    val=0;
-                    length=EBUSD_telegram_master.Slave_NN-7;
-                    if(length>7){
-                        length=7;
-                    }
-                    CAN_TX_msg.length       = length+1;
-                    CAN_TX_msg.data_byte[0] = 0xf4;
-                    for (;val<length;++val) {
-                        CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.Slave_data_byte[val+7];
-                    }
-                    while (MCP2515_message_TX()==0) {
-                        //0==Error no Transmit buffer empty
-                    }
-                }
-            }
-            status=0x0f;
-        }
-        return;
-    }
+//                for (;val<length;++val) {
+//                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.Slave_data_byte[val];
+//                }
+//                while (MCP2515_message_TX()==0) {
+//                    //0==Error no Transmit buffer empty
+//                }
+//                if(EBUSD_telegram_master.Slave_NN>7){
+//                    CAN_TX_msg.id           = ebusd_To_CAN_id();
+//                    CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+//                    CAN_TX_msg.rtr          = 0;
+//                    val=0;
+//                    length=EBUSD_telegram_master.Slave_NN-7;
+//                    if(length>7){
+//                        length=7;
+//                    }
+//                    CAN_TX_msg.length       = length+1;
+//                    CAN_TX_msg.data_byte[0] = 0xf4;
+//                    for (;val<length;++val) {
+//                        CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.Slave_data_byte[val+7];
+//                    }
+//                    while (MCP2515_message_TX()==0) {
+//                        //0==Error no Transmit buffer empty
+//                    }
+//                }
+//            }
+//            status=0x0f;
+//        }
+//        return;
+//    }
 
     static void build_RAM_IO_from_EEPROM()
     {
