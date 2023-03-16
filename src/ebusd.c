@@ -14,6 +14,9 @@ unsigned long ebusd_To_CAN_id()
     unsigned char var=0;
     while (EBUSD_telegram_master.QQ != Master_address[var]) {
         var++;
+        if(var>25){
+            return 0xFFFFFF;
+        }
     }
     unsigned long varL=0x0000;
     varL=(unsigned long)var;

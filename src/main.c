@@ -687,6 +687,243 @@ struct EBUSD_telegram EBUSD_telegram_master;
         }
     }
 
+    static void test_new_build_USART_data_block()
+    {
+        if(RingBuffer_GetCount(&RX_Buffer_1)<8)return;
+        static uint8_t status=0x00;
+
+        CAN_TX_msg.id           = (0x03000000 | (uint32_t)(microcontroller_id<<8)|status);
+        CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+        CAN_TX_msg.rtr          = 0;
+        CAN_TX_msg.length       = 8;
+        CAN_TX_msg.data_byte[0] = RingBuffer_Remove(&RX_Buffer_1);
+        CAN_TX_msg.data_byte[1] = RingBuffer_Remove(&RX_Buffer_1);
+        CAN_TX_msg.data_byte[2] = RingBuffer_Remove(&RX_Buffer_1);
+        CAN_TX_msg.data_byte[3] = RingBuffer_Remove(&RX_Buffer_1);
+        CAN_TX_msg.data_byte[4] = RingBuffer_Remove(&RX_Buffer_1);
+        CAN_TX_msg.data_byte[5] = RingBuffer_Remove(&RX_Buffer_1);
+        CAN_TX_msg.data_byte[6] = RingBuffer_Remove(&RX_Buffer_1);
+        CAN_TX_msg.data_byte[7] = RingBuffer_Remove(&RX_Buffer_1);
+        while (MCP2515_message_TX()==0) {
+            //0==Error no Transmit buffer empty
+        }
+        ++status;
+    }
+
+    static void new_build_USART_data_block()
+    {
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        static uint8_t status=0x00;
+
+        if(status==0x00 && RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+        {
+            while (RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+            {
+                if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+                RingBuffer_Remove(&RX_Buffer_1);
+            }
+            EBUSD_telegram_master.QQ=0;
+            EBUSD_telegram_master.ZZ=0;
+            EBUSD_telegram_master.PB=0;
+            EBUSD_telegram_master.SB=0;
+            EBUSD_telegram_master.NN=0;
+            EBUSD_telegram_master.ACK=0;
+            EBUSD_telegram_master.CRC=0;
+            EBUSD_telegram_master.Slave_NN=0;
+            EBUSD_telegram_master.Slave_ACK=0;
+            EBUSD_telegram_master.Slave_CRC=0;
+
+            EBUSD_telegram_master.QQ=RingBuffer_Remove(&RX_Buffer_1);
+            status=0x01;// QQ ok
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status==0x01 && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
+        {
+            EBUSD_telegram_master.ZZ=RingBuffer_Remove(&RX_Buffer_1);
+            status=0x02;// QQ ZZ ok
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status==0x02 && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
+        {
+            EBUSD_telegram_master.PB=RingBuffer_Remove(&RX_Buffer_1);
+            status=0x03;// QQ ZZ PB ok
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status==0x03 && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
+        {
+            EBUSD_telegram_master.SB=RingBuffer_Remove(&RX_Buffer_1);
+            status=0x04;// QQ ZZ PB SB ok
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status==0x04 && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
+        {
+            EBUSD_telegram_master.NN=RingBuffer_Remove(&RX_Buffer_1);
+            status=0x05;// QQ ZZ PB SB NN ok
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status>0x04 && status<(EBUSD_telegram_master.NN+0x05) && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
+        {
+            //ToDo de AAh en 9..
+            EBUSD_telegram_master.data_byte[(status-0x05)]=RingBuffer_Remove(&RX_Buffer_1);
+            ++status;// QQ ZZ PB SB NN ok get data
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status==(EBUSD_telegram_master.NN+0x05))
+        {
+            EBUSD_telegram_master.CRC=RingBuffer_Remove(&RX_Buffer_1);
+            status=0x80;// QQ ZZ PB SB NN data master ok
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status==0x80)
+        {
+            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+            {
+                //is een brotcast
+                uint8_t length=EBUSD_telegram_master.NN;
+                uint8_t can_Number=0;
+                while (length>0) {
+                    uint8_t te_versturen=length;
+                    if(te_versturen>7){
+                        te_versturen=7;
+                    }
+                    CAN_TX_msg.id           = ebusd_To_CAN_id();
+                    CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+                    CAN_TX_msg.rtr          = 0;
+                    CAN_TX_msg.length       = te_versturen+1;
+                    CAN_TX_msg.data_byte[0] = 0xf0+can_Number;
+                    uint8_t val=0;
+                    for (;val<te_versturen;++val) {
+                        CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+(can_Number*7)];
+                    }
+                    while (MCP2515_message_TX()==0) {
+                        //0==Error no Transmit buffer empty
+                    }
+                    length = length - val;
+                    ++can_Number;
+                }
+                status=0x00;
+                return;
+            }
+            EBUSD_telegram_master.Slave_ACK=RingBuffer_Remove(&RX_Buffer_1);
+            status=0x81;// QQ ZZ PB SB NN data master CRC ACK ok
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status==0x81)
+        {
+            if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
+            {
+                //is een master-master
+                if(EBUSD_telegram_master.Slave_ACK==EBUSD_ACK_ok){
+                    uint8_t length=EBUSD_telegram_master.NN;
+                    uint8_t can_Number=0;
+                    while (length>0) {
+                        uint8_t te_versturen=length;
+                        if(te_versturen>7){
+                            te_versturen=7;
+                        }
+                        CAN_TX_msg.id           = ebusd_To_CAN_id();
+                        CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+                        CAN_TX_msg.rtr          = 0;
+                        CAN_TX_msg.length       = te_versturen+1;
+                        CAN_TX_msg.data_byte[0] = 0xf0+can_Number;
+                        uint8_t val=0;
+                        for (;val<te_versturen;++val) {
+                            CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+(can_Number*7)];
+                        }
+                        while (MCP2515_message_TX()==0) {
+                            //0==Error no Transmit buffer empty
+                        }
+                        length = length - val;
+                        ++can_Number;
+                    }
+                }
+                status=0x00;
+                return;
+            }
+            EBUSD_telegram_master.Slave_NN=RingBuffer_Remove(&RX_Buffer_1);
+            status=0x82;// QQ ZZ PB SB NN ok
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status>0x81 && status<(EBUSD_telegram_master.Slave_NN+0x82) && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
+        {
+            //ToDo de AAh en 9..
+            EBUSD_telegram_master.Slave_data_byte[status-0x82]=RingBuffer_Remove(&RX_Buffer_1);
+            ++status;// QQ ZZ PB SB NN ok get data
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status==(EBUSD_telegram_master.Slave_NN+0x82) && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
+        {
+            EBUSD_telegram_master.Slave_CRC=RingBuffer_Remove(&RX_Buffer_1);
+            status=0xF0;// QQ ZZ PB SB NN data master ok
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        if(status==0xF0 && RingBuffer_Peek(&RX_Buffer_1) != EBUSD_SYN)
+        {
+            EBUSD_telegram_master.ACK=RingBuffer_Remove(&RX_Buffer_1);
+
+            uint8_t length=EBUSD_telegram_master.Slave_NN;
+            uint8_t can_Number=0;
+            while (length>0) {
+                uint8_t te_versturen=length;
+                if(te_versturen>7){
+                    te_versturen=7;
+                }
+                CAN_TX_msg.id           = ebusd_To_CAN_id();
+                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+                CAN_TX_msg.rtr          = 0;
+                CAN_TX_msg.length       = te_versturen+1;
+                CAN_TX_msg.data_byte[0] = 0xf3+can_Number;
+                uint8_t val=0;
+                for (;val<te_versturen;++val) {
+                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.Slave_data_byte[val+(can_Number*7)];
+                }
+                while (MCP2515_message_TX()==0) {
+                    //0==Error no Transmit buffer empty
+                }
+                length = length - val;
+                ++can_Number;
+            }
+            status=0x00;
+            return;
+        }
+
+        if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+        //fluss data
+        status=0x00;
+        while (RingBuffer_Peek(&RX_Buffer_1)!= EBUSD_SYN)
+        {
+            if(RingBuffer_IsEmpty(&RX_Buffer_1)) return;
+
+            RingBuffer_Remove(&RX_Buffer_1);
+        }
+
+    }
+
     static void build_USART_data_block()
     {
         if(RingBuffer_IsEmpty(&RX_Buffer_1))
@@ -779,7 +1016,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
             }
             EBUSD_telegram_master.SB=RingBuffer_Remove(&RX_Buffer_1);//4
             EBUSD_telegram_master.NN=RingBuffer_Remove(&RX_Buffer_1);//5
-            if(EBUSD_telegram_master.NN<16)
+            if(EBUSD_telegram_master.NN<17)
             {
                 status=0x01;
             }
@@ -884,7 +1121,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
                 return;
             }
             EBUSD_telegram_master.Slave_NN=RingBuffer_Remove(&RX_Buffer_1);
-            if(EBUSD_telegram_master.Slave_NN>16){
+            if(EBUSD_telegram_master.Slave_NN>17){
                 EBUSD_telegram_master.Slave_NN=0x00;
                 status=0x0f;
                 return;
@@ -1664,7 +1901,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
                 Receive_USART1();
                 /* verwerk de RX USART1 buffer */
                 if(!RingBuffer_IsEmpty(&RX_Buffer_1))
-                { build_USART_data_block(); }
+                { new_build_USART_data_block(); }
             }
 
             if (MCP2515_check_for_incoming_message())
