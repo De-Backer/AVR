@@ -28,3 +28,43 @@ unsigned long ebusd_To_CAN_id()
     varL|=(unsigned long)EBUSD_telegram_master.SB;
     return varL;
 }
+
+unsigned char ebusd_crc(unsigned char crc, unsigned char data)
+{
+    unsigned char polynom;
+    int i;
+
+    for (i = 0; i < 8; i++)
+    {
+       if (crc & 0x80)
+       {
+          polynom = (unsigned char) EBUSD_Polynomial;
+       }
+       else
+       {
+          polynom = (unsigned char) 0;
+       }
+       crc = (unsigned char)((crc & ~0x80) << 1);
+       if (data & 0x80)
+       {
+          crc = (unsigned char)(crc | 1) ;
+       }
+       crc = (unsigned char)(crc ^ polynom);
+       data = (unsigned char)(data << 1);
+    }
+    return crc;
+}
+//{
+//    unsigned char i;
+//    crc = crc ^ data;
+//    for (i = 0; i < 8; i++)
+//    {
+//        if (crc & 0x80){
+//            crc <<= 1;
+//            crc ^= EBUSD_Polynomial;
+//        } else {
+//            crc <<= 1;
+//        }
+//    }
+//    return crc;
+//}

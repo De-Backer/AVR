@@ -9,7 +9,8 @@ extern "C"
 {
 #endif
 
-#define  EBUSD_DATA_FIELD_LENGTH 17
+#define EBUSD_DATA_FIELD_LENGTH 17
+#define EBUSD_Polynomial        0x9b //0b10011011
 
 #define EBUSD_SYN       0xaa
 
@@ -71,6 +72,7 @@ struct EBUSD_telegram
 extern struct EBUSD_telegram EBUSD_telegram_master;
 
 unsigned long ebusd_To_CAN_id();
+unsigned char ebusd_crc(unsigned char crc, unsigned char data);
 
 #ifdef __cplusplus
 } // extern "C"
