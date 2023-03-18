@@ -10,38 +10,55 @@ extern "C"
 #endif
 
 #define EBUSD_DATA_FIELD_LENGTH 17
-#define EBUSD_Polynomial        0x9b //0b10011011
+
+
+// test code crc ebus
+//            uint8_t test_data[8]= {0x10, 0x76, 0xB5, 0x11, 0x01, 0x01, 0x16};
+//            uint8_t var=0x81;
+//            uint8_t crc_uit=0xff;
+//            while (crc_uit!=0) {
+//                ++var;
+//                uint8_t crc=0;
+//                uint8_t i=0;
+//                for (;i<8;++i) {
+//                    crc=test_ebusd_crc(crc,test_data[i],var);
+//                }
+//                crc_uit=crc;
+//            }
+// => 0x00 of 0x80
+
+#define EBUSD_Polynomial        0x80
 
 #define EBUSD_SYN       0xaa
 
 //0xAP
 //--->A master adres
 //--->P prioriteidklasse
-#define EBUSD_MASTER_01 0x00
+#define EBUSD_MASTER_01 0x00 //CAN id 0x00
 #define EBUSD_MASTER_02 0x10 //CAN id 0x01 ZZ PB SB
-#define EBUSD_MASTER_03 0x30
-#define EBUSD_MASTER_04 0x70
-#define EBUSD_MASTER_05 0xf0
-#define EBUSD_MASTER_06 0x01
-#define EBUSD_MASTER_07 0x11
-#define EBUSD_MASTER_08 0x31
+#define EBUSD_MASTER_03 0x30 //CAN id 0x02
+#define EBUSD_MASTER_04 0x70 //CAN id 0x03
+#define EBUSD_MASTER_05 0xf0 //CAN id 0x04
+#define EBUSD_MASTER_06 0x01 //CAN id 0x05
+#define EBUSD_MASTER_07 0x11 //CAN id 0x06
+#define EBUSD_MASTER_08 0x31 //CAN id 0x07
 #define EBUSD_MASTER_09 0x71 //CAN id 0x08 ZZ PB SB
-#define EBUSD_MASTER_10 0xf1
+#define EBUSD_MASTER_10 0xf1 //CAN id 0x09
 #define EBUSD_MASTER_11 0x03 //CAN id 0x0A ZZ PB SB
-#define EBUSD_MASTER_12 0x13
-#define EBUSD_MASTER_13 0x33
-#define EBUSD_MASTER_14 0x73
-#define EBUSD_MASTER_15 0xf3
-#define EBUSD_MASTER_16 0x07
-#define EBUSD_MASTER_17 0x17
-#define EBUSD_MASTER_18 0x37
-#define EBUSD_MASTER_19 0x77
-#define EBUSD_MASTER_20 0xf7
-#define EBUSD_MASTER_21 0x0f
-#define EBUSD_MASTER_22 0x1f
-#define EBUSD_MASTER_23 0x3f
-#define EBUSD_MASTER_24 0x7f
-#define EBUSD_MASTER_25 0xff
+#define EBUSD_MASTER_12 0x13 //CAN id 0x0b
+#define EBUSD_MASTER_13 0x33 //CAN id 0x0c
+#define EBUSD_MASTER_14 0x73 //CAN id 0x0d
+#define EBUSD_MASTER_15 0xf3 //CAN id 0x0e
+#define EBUSD_MASTER_16 0x07 //CAN id 0x0f
+#define EBUSD_MASTER_17 0x17 //CAN id 0x10
+#define EBUSD_MASTER_18 0x37 //CAN id 0x11
+#define EBUSD_MASTER_19 0x77 //CAN id 0x12
+#define EBUSD_MASTER_20 0xf7 //CAN id 0x13
+#define EBUSD_MASTER_21 0x0f //CAN id 0x14
+#define EBUSD_MASTER_22 0x1f //CAN id 0x15
+#define EBUSD_MASTER_23 0x3f //CAN id 0x16
+#define EBUSD_MASTER_24 0x7f //CAN id 0x17
+#define EBUSD_MASTER_25 0xff //CAN id 0x18
 
 #define EBUSD_ACK_ok    0x00
 #define EBUSD_ACK_N_ok  0xff
@@ -50,7 +67,6 @@ extern "C"
 #define EBUSD_SEND      0x01
 #define EBUSD_START     0x02
 #define EBUSD_INFO      0x03
-
 
 struct EBUSD_telegram
 {
@@ -72,6 +88,7 @@ struct EBUSD_telegram
 extern struct EBUSD_telegram EBUSD_telegram_master;
 
 unsigned long ebusd_To_CAN_id();
+//unsigned char test_ebusd_crc(unsigned char crc, unsigned char data, unsigned char Polynomial);
 unsigned char ebusd_crc(unsigned char crc, unsigned char data);
 
 #ifdef __cplusplus

@@ -36,6 +36,9 @@ extern "C"
 
 #include "../include/mcp23s17.h"
 #include "../include/CAN_MCP2515.h"
+struct CAN_msg CAN_TX_msg;
+struct CAN_msg CAN_RX_msg;
+
 #include "../include/SPI.h"
 #include "../include/usart.h"
 
@@ -700,7 +703,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
         CAN_TX_msg.id           = (0x03000000 | (uint32_t)(microcontroller_id<<8)|status);
         CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
         CAN_TX_msg.rtr          = 0;
-        CAN_TX_msg.length       = 8;
+        CAN_TX_msg.length       = 0;
         CAN_TX_msg.data_byte[0] = RingBuffer_Remove(&RX_Buffer_1);
         CAN_TX_msg.data_byte[1] = RingBuffer_Remove(&RX_Buffer_1);
         CAN_TX_msg.data_byte[2] = RingBuffer_Remove(&RX_Buffer_1);
@@ -709,6 +712,13 @@ struct EBUSD_telegram EBUSD_telegram_master;
         CAN_TX_msg.data_byte[5] = RingBuffer_Remove(&RX_Buffer_1);
         CAN_TX_msg.data_byte[6] = RingBuffer_Remove(&RX_Buffer_1);
         CAN_TX_msg.data_byte[7] = RingBuffer_Remove(&RX_Buffer_1);
+        uint8_t i=0;
+        for (;i<8;++i) {
+            if(CAN_TX_msg.data_byte[i]!=EBUSD_SYN){
+                ++CAN_TX_msg.length;
+            }
+
+        }
         while (MCP2515_message_TX()==0) {
             //0==Error no Transmit buffer empty
         }
@@ -852,58 +862,30 @@ struct EBUSD_telegram EBUSD_telegram_master;
         {
             if(RingBuffer_Peek(&RX_Buffer_1) == EBUSD_SYN)
             {
-                //is een brotcast
-                uint8_t lenkte=EBUSD_telegram_master.NN;
-                if(lenkte>7){
-                    lenkte=7;
-                }
-                CAN_TX_msg.id           = ebusd_To_CAN_id();
-                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                CAN_TX_msg.rtr          = 0;
-                CAN_TX_msg.length       = lenkte+1;
-                CAN_TX_msg.data_byte[0] = 0xA0;
-                uint8_t val=0;
-                for (;val<lenkte;++val) {
-                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val];
-                }
-                while (MCP2515_message_TX()==0) {
-                    //0==Error no Transmit buffer empty
-                }
-                if(EBUSD_telegram_master.NN>7){
-                    lenkte=EBUSD_telegram_master.NN-7;
-                    if(lenkte>7){
-                        lenkte=7;
-                    }
-                    CAN_TX_msg.id           = ebusd_To_CAN_id();
-                    CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                    CAN_TX_msg.rtr          = 0;
-                    CAN_TX_msg.length       = lenkte+1;
-                    CAN_TX_msg.data_byte[0] = 0xA1;
-                    uint8_t val=0;
-                    for (;val<lenkte;++val) {
-                        CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+7];
-                    }
-                    while (MCP2515_message_TX()==0) {
-                        //0==Error no Transmit buffer empty
-                    }
-                }
+                if(EBUSD_telegram_master.ZZ==0xfe){
+                    //is een broadcast
 
-                if(EBUSD_telegram_master.NN>7){
-                    lenkte=EBUSD_telegram_master.NN-7;
-                    if(lenkte>7){
-                        lenkte=7;
-                    }
-                    CAN_TX_msg.id           = ebusd_To_CAN_id();
-                    CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                    CAN_TX_msg.rtr          = 0;
-                    CAN_TX_msg.length       = lenkte+1;
-                    CAN_TX_msg.data_byte[0] = 0xA2;
-                    uint8_t val=0;
-                    for (;val<lenkte;++val) {
-                        CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+14];
-                    }
-                    while (MCP2515_message_TX()==0) {
-                        //0==Error no Transmit buffer empty
+                    uint8_t length=EBUSD_telegram_master.NN;
+                    uint8_t can_Number=0;
+                    while (length>0) {
+                        uint8_t te_versturen=length;
+                        if(te_versturen>7){
+                            te_versturen=7;
+                        }
+                        CAN_TX_msg.id           = ebusd_To_CAN_id();
+                        CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+                        CAN_TX_msg.rtr          = 0;
+                        CAN_TX_msg.length       = te_versturen+1;
+                        CAN_TX_msg.data_byte[0] = 0xA0+can_Number;
+                        uint8_t val=0;
+                        for (;val<te_versturen;++val) {
+                            CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+(can_Number*7)];
+                        }
+                        while (MCP2515_message_TX_to_buffer(0x02)==0) {
+                            //0==Error no Transmit buffer empty
+                        }
+                        length = length - val;
+                        ++can_Number;
                     }
                 }
                 status=0x00;
@@ -914,28 +896,29 @@ struct EBUSD_telegram EBUSD_telegram_master;
                 status=0x00;
                 return;
             }
-            uint8_t length=EBUSD_telegram_master.NN;
-            uint8_t can_Number=0;
-            while (length>0) {
-                uint8_t te_versturen=length;
-                if(te_versturen>7){
-                    te_versturen=7;
-                }
-                CAN_TX_msg.id           = ebusd_To_CAN_id();
-                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
-                CAN_TX_msg.rtr          = 0;
-                CAN_TX_msg.length       = te_versturen+1;
-                CAN_TX_msg.data_byte[0] = 0xF0+can_Number;
-                uint8_t val=0;
-                for (;val<te_versturen;++val) {
-                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+(can_Number*7)];
-                }
-                while (MCP2515_message_TX()==0) {
-                    //0==Error no Transmit buffer empty
-                }
-                length = length - val;
-                ++can_Number;
-            }
+            // niet meer hier doen maar waneer slave andwoordt
+//            uint8_t length=EBUSD_telegram_master.NN;
+//            uint8_t can_Number=0;
+//            while (length>0) {
+//                uint8_t te_versturen=length;
+//                if(te_versturen>7){
+//                    te_versturen=7;
+//                }
+//                CAN_TX_msg.id           = ebusd_To_CAN_id();
+//                CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+//                CAN_TX_msg.rtr          = 0;
+//                CAN_TX_msg.length       = te_versturen+1;
+//                CAN_TX_msg.data_byte[0] = 0xF0+can_Number;
+//                uint8_t val=0;
+//                for (;val<te_versturen;++val) {
+//                    CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+(can_Number*7)];
+//                }
+//                while (MCP2515_message_TX()==0) {
+//                    //0==Error no Transmit buffer empty
+//                }
+//                length = length - val;
+//                ++can_Number;
+//            }
             status=0x81;// QQ ZZ PB SB NN data master CRC ACK ok
         }
 
@@ -1014,8 +997,31 @@ struct EBUSD_telegram EBUSD_telegram_master;
             EBUSD_telegram_master.ACK=RingBuffer_Remove(&RX_Buffer_1);
 
             if(EBUSD_telegram_master.ACK==EBUSD_ACK_ok){
-                uint8_t length=EBUSD_telegram_master.Slave_NN;
+                uint8_t length=EBUSD_telegram_master.NN;
                 uint8_t can_Number=0;
+                while (length>0) {
+                    uint8_t te_versturen=length;
+                    if(te_versturen>7){
+                        te_versturen=7;
+                    }
+                    CAN_TX_msg.id           = ebusd_To_CAN_id();
+                    CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
+                    CAN_TX_msg.rtr          = 0;
+                    CAN_TX_msg.length       = te_versturen+1;
+                    CAN_TX_msg.data_byte[0] = 0xF0+can_Number;
+                    uint8_t val=0;
+                    for (;val<te_versturen;++val) {
+                        CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.data_byte[val+(can_Number*7)];
+                    }
+                    while (MCP2515_message_TX_to_buffer(0x02)==0) {
+                        //0==Error no Transmit buffer empty
+                    }
+                    length = length - val;
+                    ++can_Number;
+                }
+
+                length=EBUSD_telegram_master.Slave_NN;
+                can_Number=0;
                 while (length>0) {
                     uint8_t te_versturen=length;
                     if(te_versturen>7){
@@ -1030,7 +1036,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
                     for (;val<te_versturen;++val) {
                         CAN_TX_msg.data_byte[val+1] = EBUSD_telegram_master.Slave_data_byte[val+(can_Number*7)];
                     }
-                    while (MCP2515_message_TX()==0) {
+                    while (MCP2515_message_TX_to_buffer(0x02)==0) {
                         //0==Error no Transmit buffer empty
                     }
                     length = length - val;
@@ -2031,7 +2037,8 @@ struct EBUSD_telegram EBUSD_telegram_master;
                 Receive_USART1();
                 /* verwerk de RX USART1 buffer */
                 if(!RingBuffer_IsEmpty(&RX_Buffer_1))
-                { new_build_USART_data_block();
+                {
+                    new_build_USART_data_block();
                 }
             }
 

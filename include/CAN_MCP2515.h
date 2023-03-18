@@ -360,7 +360,7 @@ extern "C"
 #define R_CNF2_1Mbps ((1 << BTLMODE) | (1 << PHSEG11))
 #define R_CNF3_1Mbps ((1 << PHSEG21))
 
-    typedef struct CAN_msg
+    struct CAN_msg
     {
         unsigned long id;
         unsigned char ext_id : 1;
@@ -369,8 +369,8 @@ extern "C"
         unsigned char data_byte[CAN_DATA_FIELD_LENGTH];
     };
 
-    struct CAN_msg CAN_TX_msg;
-    struct CAN_msg CAN_RX_msg;
+    extern struct CAN_msg CAN_TX_msg;
+    extern struct CAN_msg CAN_RX_msg;
 
     void MCP2515_init(void);
     void MCP2515_reset(void);
@@ -383,6 +383,7 @@ extern "C"
     unsigned char MCP2515_check_for_incoming_message(void);
     void          MCP2515_check_for_interrupts(void);
     unsigned char MCP2515_message_TX(void);
+    unsigned char MCP2515_message_TX_to_buffer(unsigned char buffer);
     unsigned char MCP2515_message_RX(void);
     void          MCP2515_clear_RX_buffers(void);
     void          MCP2515_clear_TX_buffers(void);

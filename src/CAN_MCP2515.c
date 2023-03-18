@@ -374,6 +374,134 @@ unsigned char MCP2515_message_TX(void)
 
     return address;
 }
+/**
+ * @brief MCP2515_message_TX_to_buffer
+ * buffer
+ * 0= TXB0 buffer
+ * 1= TXB1 buffer
+ * 2= TXB2 buffer
+ * @return
+ * 0=Error no Transmit buffer empty
+ * 1=ok message to Transmit buffer TXB0
+ * 2=ok message to Transmit buffer TXB1
+ * 4=ok message to Transmit buffer TXB2
+ */
+unsigned char MCP2515_message_TX_to_buffer(unsigned char buffer)
+{
+    if(buffer>2){
+        /* Error not a Transmit buffer address */
+        return 0;
+    }
+
+    unsigned char i        = 0x00;
+    unsigned char status   = 0x00;
+    unsigned char address  = 0x00;
+    unsigned char TXBnDLC  = 0x00;
+    unsigned char TXBnSIDH = 0x00;
+    unsigned char TXBnSIDL = 0x00;
+    unsigned char TXBnEID8 = 0x00;
+    unsigned char TXBnEID0 = 0x00;
+
+    TXBnDLC = (CAN_TX_msg.length & length_bit_fields);
+
+    /* which Transmit buffers is empty? */
+    status = MCP2515_read_status(SPI_READ_STATUS);
+
+    switch (buffer) {
+    case 0:
+        if ((status & (1 << 2)) == 0)
+        {
+            /* Transmit buffer empty TXREQ TXB0CNTRL */
+            /* address = 0x00; */
+        }
+        else
+        {
+            /* Error no Transmit buffer empty */
+            return 0;
+        }
+        break;
+
+    case 1:
+        if ((status & (1 << 4)) == 0)
+        {
+            /* Transmit buffer empty TXREQ TXB1CNTRL */
+            address = 0x02;
+        }
+        else
+        {
+            /* Error no Transmit buffer empty */
+            return 0;
+        }
+        break;
+
+    default://2
+        if ((status & (1 << 6)) == 0)
+        {
+            /* Transmit buffer empty TXREQ TXB2CNTRL */
+            address = 0x04;
+        }
+        else
+        {
+            /* Error no Transmit buffer empty */
+            return 0;
+        }
+        break;
+    }
+
+    switch (CAN_TX_msg.ext_id)
+    {
+    case CAN_EXTENDED_FRAME:
+    {
+        TXBnSIDH  =  (unsigned char)(CAN_TX_msg.id >> 21);
+        TXBnSIDL  = ((unsigned char)(CAN_TX_msg.id >> 13) & SIDL_SID);
+        TXBnSIDL |= ((unsigned char)(CAN_TX_msg.id >> 16) & SIDL_EID);
+        TXBnEID8  =  (unsigned char)(CAN_TX_msg.id >> 8);
+        TXBnEID0  =  (unsigned char) CAN_TX_msg.id;
+
+        TXBnSIDL |= (1 << IDE);
+
+        if (CAN_TX_msg.rtr) { TXBnDLC |= (1 << RTR); }
+
+        break;
+    }
+
+    default:
+    {
+        TXBnSIDH =  (unsigned char)(CAN_TX_msg.id >> 3);
+        TXBnSIDL = ((unsigned char)(CAN_TX_msg.id << 5) & SIDL_SID);
+        TXBnEID8 = 0x00;
+        TXBnEID0 = 0x00;
+
+        if (CAN_TX_msg.rtr) { TXBnDLC |= (1 << RTR); }
+
+        break;
+    }
+    }
+
+    MCP2515_SELECT();
+    spi_write(SPI_WRITE_TX | address);
+
+    spi_write(TXBnSIDH);
+    spi_write(TXBnSIDL);
+    spi_write(TXBnEID8);
+    spi_write(TXBnEID0);
+    spi_write(TXBnDLC);
+
+    if (!CAN_TX_msg.rtr){for (i = 0; i < TXBnDLC; i++) { spi_write(CAN_TX_msg.data_byte[i]); }}
+
+    MCP2515_UNSELECT();
+
+    /* CS Setup Time min 50ns */
+
+    if (address == 0) { address = 1; }
+
+    MCP2515_SELECT();
+
+    spi_write(SPI_RTS | address);
+    MCP2515_UNSELECT();
+
+    return address;
+}
 
 unsigned char MCP2515_message_RX(void)
 {
