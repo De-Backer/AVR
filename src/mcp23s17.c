@@ -1,6 +1,33 @@
 #include "../include/mcp23s17.h"
 #include <util/delay.h>
 
+/* IO prind
+ *
+ *   ||||||||||
+ *   ===========
+ *  prind 0  C1
+ *     J1  J2
+ * 20 -A0 GND-
+ * 21 -A1 VCC-
+ * 22 -A2  B7- 2F
+ * 23 -A3  B6- 2E
+ * 24 -A4  B5- 2D
+ * 25 -A5  B4- 2C
+ * 26 -A6  B3- 2B
+ * 27 -A8  B2- 2A
+ *    -VCC B1- 29
+ *    -GND B0- 28
+ *
+ * 2x=> prind 0
+ * 3x=> prind 1
+ * 4x=> prind 2
+ * 5x=> prind 3
+ * 6x=> prind 4
+ * 7x=> prind 5
+ * 8x=> prind 6
+ * 9x=> prind 7
+ * */
+
 void MCP23S17_init(void)
 {
     RESET_DDR_MCP23S17  |= (0x01 << RESET_PIN_MCP23S17);  /* output */
