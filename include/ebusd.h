@@ -70,10 +70,10 @@ extern "C"
 
 struct EBUSD_telegram
 {
-    unsigned char QQ;//master adres max 25 verscillend adressen
-    unsigned char ZZ;//bestemmings adres max 254 verscillend adressen
-    unsigned char PB;//primaire commando max 254 verscillend niet 0xaa en 0xa9
-    unsigned char SB;//sekudeer commando max 254 verscillend niet 0xaa en 0xa9
+    unsigned char QQ;//master adres max 25 verschillend adressen
+    unsigned char ZZ;//bestemmings adres max 254 verschillend adressen
+    unsigned char PB;//primaire commando max 254 verschillend niet 0xaa en 0xa9
+    unsigned char SB;//sekudeer commando max 254 verschillend niet 0xaa en 0xa9
     unsigned char NN;//aantal data byts 0 tot 16
     unsigned char data_byte[EBUSD_DATA_FIELD_LENGTH];
     unsigned char CRC;//de CRC
