@@ -765,6 +765,10 @@ struct EBUSD_telegram EBUSD_telegram_master;
                 status=0x00;
                 return;
             }
+            if(RingBuffer_Peek(&RX_Buffer_1) == 0xa9){
+                status=0x00;
+                return;
+            }
             EBUSD_telegram_master.ZZ=RingBuffer_Remove(&RX_Buffer_1);
             crc=ebusd_crc(crc,EBUSD_telegram_master.ZZ);
             status=0x02;// QQ ZZ ok

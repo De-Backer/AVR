@@ -19,7 +19,15 @@ unsigned long ebusd_To_CAN_id()
         }
     }
     unsigned long varL=0x0000;
-    varL=(unsigned long)var;
+    varL=(unsigned long)var;//QQ is vertaald voor beperking can id 29bit
+
+    var=0;//we testen zz(ontvanger) adres
+    for (;var<25;++var) {
+        if(EBUSD_telegram_master.ZZ == Master_address[var]){
+            //ZZ kan geen master adres zijn
+            return 0xFFFFFF;
+        }
+    }
     varL <<= 8;
     varL|=(unsigned long)EBUSD_telegram_master.ZZ;
     varL <<= 8;
