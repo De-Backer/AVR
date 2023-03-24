@@ -2,7 +2,9 @@
 #define CAN_MCP2515_H
 
 #include "../include/SPI.h"
-
+#ifdef Dev_TX_buffer
+#include "../include/RingBuffer.h"
+#endif
 #include <avr/io.h>
 
 #ifdef __cplusplus
@@ -360,6 +362,46 @@ extern "C"
 #define R_CNF2_1Mbps ((1 << BTLMODE) | (1 << PHSEG11))
 #define R_CNF3_1Mbps ((1 << PHSEG21))
 
+/* Voorstel ringbuffer naar can
+ * min 3 byte max 13 byte
+ * telegram:
+ * [RTR,FRAME,Prio,length:0-8] [ID][ID]        [data 0]...[data n]
+ * [RTR,FRAME,Prio,length:0-8] [ID][ID][ID][ID][data 0]...[data n]
+ * byte 0
+ *  bit 7 RTR      : 0 = data Frame 1 = Remote Frame
+ *  bit 6 Frame    : 0 = Standard Data Frame 1 = Extended Data Frame
+ *  bit 5-4 Prio   : 00 = naar een vrij buffer
+ *                   01 = naar buffer 1
+ *                   10 = naar buffer 2
+ *                   11 = naar buffer 3
+ *  bit 3-0 length : 0 tot 8 data bytes
+ * byte 1  CAN ID TXBnSIDH
+ * byte 2  CAN ID TXBnSIDL
+ * (byte 3  CAN ID TXBnEID8)
+ * (byte 4  CAN ID TXBnEID0)
+ * byte 5-13 data
+ *
+ *  bv: Standard data   Frame vrij buffer 8 byte
+ *      0x08 [ID] [ID] [D0]-- [D7]
+ *  bv: Extended data   Frame vrij buffer 8 byte
+ *      0x48 [ID] [ID] [ID] [ID] [D0]-- [D7]
+ *  bv: Standard Remote Frame vrij buffer 0 byte
+ *       0x80 [ID] [ID]
+ *  bv: Extended Remote Frame vrij buffer 0 byte
+ *       0xA0 [ID] [ID] [ID] [ID]
+ *
+ * if(RingBuffer_IsEmpty(&Buffer)) return;
+ * unsigned char con_q=RingBuffer_Peek(&Buffer);
+ * if (con_q&0x4){
+ *  con_q &= 0x0f;
+ *  con_q += 2;
+ * } else {
+ *  con_q &= 0x0f;
+ * }
+ * if(RingBuffer_GetCount(&Buffer)<con_q) return;
+ *
+ */
+
     struct CAN_msg
     {
         unsigned long id;
@@ -368,7 +410,10 @@ extern "C"
         unsigned char length : 4;
         unsigned char data_byte[CAN_DATA_FIELD_LENGTH];
     };
-
+#ifdef Dev_TX_buffer
+    extern RingBuffer_t CAN_TX_Buffer;
+    extern uint8_t      CAN_TX_BufferData[27];
+#endif
     extern struct CAN_msg CAN_TX_msg;
     extern struct CAN_msg CAN_RX_msg;
 
@@ -382,6 +427,9 @@ extern "C"
     unsigned char MSP2515_check_free_buffer(void);
     unsigned char MCP2515_check_for_incoming_message(void);
     void          MCP2515_check_for_interrupts(void);
+#ifdef Dev_TX_buffer
+    unsigned char MCP2515_poll_TX(void);
+#endif
     unsigned char MCP2515_message_TX(void);
     unsigned char MCP2515_message_TX_to_buffer(unsigned char buffer);
     unsigned char MCP2515_message_RX(void);

@@ -110,7 +110,7 @@ struct EBUSD_telegram
     //76 = VWZ AI VML X/2 A (externe modulle warmtepomp)
     //E8 = Slave 190 VML 85/3 A 230 V (warmtepomp)
     unsigned char PB;//primaire commando max 254 verschillend niet 0xaa en 0xa9
-    unsigned char SB;//sekudeer commando max 254 verschillend niet 0xaa en 0xa9
+    unsigned char SB;//secundaire commando max 254 verschillend niet 0xaa en 0xa9
     unsigned char NN;//aantal data byts 0 tot 16
     unsigned char data_byte[EBUSD_DATA_FIELD_LENGTH];
     unsigned char CRC;//de CRC
@@ -124,6 +124,7 @@ struct EBUSD_telegram
 
 extern struct EBUSD_telegram EBUSD_telegram_master;
 
+unsigned char ebusd_master_id_To_CAN_id();
 unsigned long ebusd_To_CAN_id();
 //unsigned char test_ebusd_crc(unsigned char crc, unsigned char data, unsigned char Polynomial);
 unsigned char ebusd_crc(unsigned char crc, unsigned char data);

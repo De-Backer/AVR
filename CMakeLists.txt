@@ -34,6 +34,7 @@ add_library(CAN_MCP2515 src/CAN_MCP2515.c include/CAN_MCP2515.h)
 add_definitions(-DSPI_DDR_MCP23S17=DDRB)
 add_definitions(-DSPI_PORT_MCP23S17=PORTB)
 add_definitions(-DSPI_CS_MCP23S17=0)
+add_definitions(-DDev_TX_buffer)
 #reset pin
 add_definitions(-DRESET_DDR_MCP23S17=DDRB)
 add_definitions(-DRESET_PORT_MCP23S17=PORTB)

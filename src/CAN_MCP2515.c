@@ -4,6 +4,9 @@
 
 void MCP2515_init(void)
 {
+#ifdef Dev_TX_buffer
+    RingBuffer_InitBuffer(&CAN_TX_Buffer, CAN_TX_BufferData,sizeof(CAN_TX_BufferData));
+#endif
     init_SPI();
     SPI_DDR_CAN |= (0x01 << SPI_CS_CAN);   /* output */
     SPI_PORT_CAN &= ~(0x01 << SPI_CS_CAN); /* laag */
@@ -275,6 +278,295 @@ void MCP2515_check_for_interrupts(void)
     // test soms geen can com meer
     MCP2515_reset();
 }
+#ifdef Dev_TX_buffer
+/**
+ * @brief MCP2515_poll_TX
+ * @return
+ * 0x00=Error Transmit buffer full or data buffer full
+ * 0x01=ok message to Transmit buffer TXB0
+ * 0x02=ok message to Transmit buffer TXB1
+ * 0x04=ok message to Transmit buffer TXB2
+ * 0x10=data buffer empty
+ */
+unsigned char MCP2515_poll_TX(void)
+{
+    if(RingBuffer_IsEmpty(&CAN_TX_Buffer)) return 0x10;
+
+    unsigned char con_q=RingBuffer_Peek(&CAN_TX_Buffer);
+    unsigned char data_lenkte=con_q & length_bit_fields;
+    if ( con_q & 0x40 ){
+        // CAN_EXTENDED_FRAME
+        data_lenkte += 4;
+    } else {
+        // CAN_STANDARD_FRAME
+        data_lenkte += 2;
+    }
+    if(RingBuffer_GetCount(&CAN_TX_Buffer)<data_lenkte) return 0x10;
+
+    //er is data te versturen
+
+    unsigned char status   = 0x00;
+    unsigned char address  = 0x00;
+
+    /* which Transmit buffers is empty? */
+    status = MCP2515_read_status(SPI_READ_STATUS);
+
+    //Prio
+    con_q >>=4;
+    con_q &=0x03;
+
+    if( con_q==1 ){
+        //buffer 1
+        if ((status & (1 << 2)) == 0)
+        {
+            /* Transmit buffer empty TXREQ TXB0CNTRL */
+            /* address = 0x00; */
+        }
+        else
+        {
+            /* Error no Transmit buffer empty */
+            return 0;
+        }
+
+    } else if ( con_q==2 ) {
+        //buffer 2
+        if ((status & (1 << 4)) == 0)
+        {
+            /* Transmit buffer empty TXREQ TXB1CNTRL */
+            address = 0x02;
+        }
+        else
+        {
+            /* Error no Transmit buffer empty */
+            return 0;
+        }
+
+    } else if ( con_q==3 ) {
+        //buffer 3
+        if ((status & (1 << 6)) == 0)
+        {
+            /* Transmit buffer empty TXREQ TXB2CNTRL */
+            address = 0x04;
+        }
+        else
+        {
+            /* Error no Transmit buffer empty */
+            return 0;
+        }
+
+    } else {
+        //buffer vrij
+        if ((status & (1 << 2)) == 0)
+        {
+            /* Transmit buffer empty TXREQ TXB0CNTRL */
+            /* address = 0x00; */
+        }
+        else if ((status & (1 << 4)) == 0)
+        {
+            /* Transmit buffer empty TXREQ TXB1CNTRL */
+            address = 0x02;
+        }
+        else if ((status & (1 << 6)) == 0)
+        {
+            /* Transmit buffer empty TXREQ TXB2CNTRL */
+            address = 0x04;
+        }
+        else
+        {
+            /* Error no Transmit buffer empty */
+            return 0;
+        }
+
+    }
+    //er is ruimte vrij op mcp2515
+
+    MCP2515_SELECT();
+    {
+        spi_write(SPI_WRITE_TX | address);
+
+        con_q=RingBuffer_Remove(&CAN_TX_Buffer);
+        unsigned char TXBnDLC  = (con_q & length_bit_fields);
+        if ( con_q & 0x80 ){ TXBnDLC |= (1 << RTR); }
+        unsigned int  temp_id = 0x0000;
+        temp_id  = RingBuffer_Remove(&CAN_TX_Buffer); // Can id  28-24  or 10-8
+        temp_id<<=8;
+        temp_id |= RingBuffer_Remove(&CAN_TX_Buffer); // Can id  23-16  or  7-0
+        if ( con_q & 0x40 ){
+            // CAN_EXTENDED_FRAME
+
+            spi_write((unsigned char)(temp_id >> 5));
+            unsigned char TXBnSIDL = 0x00;
+            TXBnSIDL  = ((unsigned char)(temp_id << 3) & SIDL_SID);
+            TXBnSIDL |= ((unsigned char)(temp_id) & SIDL_EID);
+            TXBnSIDL |= (1 << IDE);
+            spi_write(TXBnSIDL);
+            spi_write(RingBuffer_Remove(&CAN_TX_Buffer)); // Can id  15- 8  => TXBnEID8
+            spi_write(RingBuffer_Remove(&CAN_TX_Buffer)); // Can id  7 - 0  => TXBnEID0
+
+        } else {
+            // CAN_STANDARD_FRAME
+            spi_write((unsigned char)(temp_id >> 3));
+            spi_write(((unsigned char)(temp_id << 5) & SIDL_SID));
+            spi_write(0x00);
+            spi_write(0x00);
+
+        }
+        spi_write(TXBnDLC);
+
+        if (!( con_q & 0x80 )){
+            unsigned char i = 0x00;
+            for (i = 0; i < TXBnDLC; i++)
+            { spi_write(RingBuffer_Remove(&CAN_TX_Buffer)); }
+        }
+    }
+    MCP2515_UNSELECT();
+
+    /* CS Setup Time min 50ns */
+
+    if (address == 0) { address = 1; }
+
+    MCP2515_SELECT();
+
+    spi_write(SPI_RTS | address);
+    MCP2515_UNSELECT();
+
+    return address;
+}
+/**
+ * @brief MCP2515_message_TX
+ *        zet struct CAN_TX_msg om naar CAN_TX_Buffer
+ * @return
+ * 0x00=Error Transmit buffer full or data buffer full
+ * 0x01=ok message to Transmit buffer TXB0
+ * 0x02=ok message to Transmit buffer TXB1
+ * 0x04=ok message to Transmit buffer TXB2
+ * 0x10=data buffer empty
+ */
+//unsigned char MCP2515_message_TX(void)
+//{
+//    unsigned char var=CAN_TX_msg.length;
+//    if (var>8){var=0x08;}
+//    if (CAN_TX_msg.rtr){var=0x00;}
+
+//    typedef union
+//    {
+//        uint32_t long_id;
+//        uint8_t  int_id[4];
+//    } ID;
+//    ID id;
+//    id.long_id=CAN_TX_msg.id;
+//    if (CAN_TX_msg.ext_id==CAN_EXTENDED_FRAME)
+//    {
+//        while (RingBuffer_GetFreeCount(&CAN_TX_Buffer)<(var+5)) {
+//            MCP2515_poll_TX();
+//        }
+//        var|=0x40;
+//        if (CAN_TX_msg.rtr) { var|=0x80; }
+//        RingBuffer_Insert(&CAN_TX_Buffer,var);
+//        RingBuffer_Insert(&CAN_TX_Buffer,id.int_id[3]);
+//        RingBuffer_Insert(&CAN_TX_Buffer,id.int_id[2]);
+//    } else {
+//        while (RingBuffer_GetFreeCount(&CAN_TX_Buffer)<(var+3)) {
+//            MCP2515_poll_TX();
+//        }
+//        if (CAN_TX_msg.rtr) { var|=0x80; }
+//        RingBuffer_Insert(&CAN_TX_Buffer,var);
+//    }
+//    RingBuffer_Insert(&CAN_TX_Buffer,id.int_id[1]);
+//    RingBuffer_Insert(&CAN_TX_Buffer,id.int_id[0]);
+//    //Data
+//    if (!CAN_TX_msg.rtr)
+//    {
+//        var=CAN_TX_msg.length;
+//        if (var>8){var=0x08;}
+//        unsigned char i=0x00;
+//        for (i = 0; i < var; i++) { RingBuffer_Insert(&CAN_TX_Buffer,CAN_TX_msg.data_byte[i]); }
+//    }
+//    return MCP2515_poll_TX();
+//}
+/**
+ * @brief MCP2515_message_TX_to_buffer
+ * buffer
+ * 0= TXB0 buffer
+ * 1= TXB1 buffer
+ * 2= TXB2 buffer
+ * @return
+ * 0=Error no Transmit buffer empty
+ * 1=ok message to Transmit buffer TXB0
+ * 2=ok message to Transmit buffer TXB1
+ * 4=ok message to Transmit buffer TXB2
+ */
+//unsigned char MCP2515_message_TX_to_buffer(unsigned char buffer)
+//{
+
+//    unsigned char var=CAN_TX_msg.length;
+//    if (var>8){var=0x08;}
+//    if (CAN_TX_msg.rtr){var=0x00;}
+
+//    typedef union
+//    {
+//        uint32_t long_id;
+//        uint8_t  int_id[4];
+//    } ID;
+//    ID id;
+//    id.long_id=CAN_TX_msg.id;
+//    if (CAN_TX_msg.ext_id==CAN_EXTENDED_FRAME)
+//    {
+//        while (RingBuffer_GetFreeCount(&CAN_TX_Buffer)<(var+5)) {
+//            MCP2515_poll_TX();
+//        }
+//        var|=0x40;
+//        switch (buffer) {
+//        case 0:
+//            var|=0x10;
+//            break;
+//        case 1:
+//            var|=0x20;
+//            break;
+//        case 2:
+//            var|=0x30;
+//            break;
+//        default:
+//            break;
+//        }
+//        if (CAN_TX_msg.rtr) { var|=0x80; }
+//        RingBuffer_Insert(&CAN_TX_Buffer,var);
+//        RingBuffer_Insert(&CAN_TX_Buffer,id.int_id[3]);
+//        RingBuffer_Insert(&CAN_TX_Buffer,id.int_id[2]);
+//    } else {
+//        while (RingBuffer_GetFreeCount(&CAN_TX_Buffer)<(var+3)) {
+//            MCP2515_poll_TX();
+//        }
+//        switch (buffer) {
+//        case 0:
+//            var|=0x10;
+//            break;
+//        case 1:
+//            var|=0x20;
+//            break;
+//        case 2:
+//            var|=0x30;
+//            break;
+//        default:
+//            break;
+//        }
+//        if (CAN_TX_msg.rtr) { var|=0x80; }
+//        RingBuffer_Insert(&CAN_TX_Buffer,var);
+//    }
+//    RingBuffer_Insert(&CAN_TX_Buffer,id.int_id[1]);
+//    RingBuffer_Insert(&CAN_TX_Buffer,id.int_id[0]);
+//    //Data
+//    if (!CAN_TX_msg.rtr)
+//    {
+//        var=CAN_TX_msg.length;
+//        if (var>8){var=0x08;}
+//        unsigned char i=0x00;
+//        for (i = 0; i < var; i++) { RingBuffer_Insert(&CAN_TX_Buffer,CAN_TX_msg.data_byte[i]); }
+//    }
+//    return MCP2515_poll_TX();
+//}
+#endif
+
 /**
  * @brief MCP2515_message_TX
  * @return

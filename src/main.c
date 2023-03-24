@@ -29,18 +29,29 @@
 #ifndef _main_c__
 #define _main_c__
 
-#ifdef __cplusplus
+/* Enable C linkage for C++ Compilers: */
+#    if defined(__cplusplus)
 extern "C"
 {
 #endif
 
 #include "../include/mcp23s17.h"
 #include "../include/CAN_MCP2515.h"
+#ifdef Dev_TX_buffer
+RingBuffer_t CAN_TX_Buffer;
+uint8_t      CAN_TX_BufferData[27];
+#else
+#endif
 struct CAN_msg CAN_TX_msg;
 struct CAN_msg CAN_RX_msg;
 
 #include "../include/SPI.h"
 #include "../include/usart.h"
+
+RingBuffer_t RX_Buffer;
+uint8_t      RX_BufferData[20];
+RingBuffer_t RX_Buffer_1;
+uint8_t      RX_BufferData_1[10];
 
 #include "../include/ebusd.h"
 struct EBUSD_telegram EBUSD_telegram_master;
@@ -424,7 +435,46 @@ struct EBUSD_telegram EBUSD_telegram_master;
     static void CAN_echo_id_Adres(uint8_t data1, uint8_t data2)
     {
         /* info Microcontroller can */
-
+#ifdef Dev_TX_buffer
+        while (RingBuffer_GetFreeCount(&CAN_TX_Buffer)<(13)) {
+            MCP2515_poll_TX();
+        }
+        RingBuffer_Insert(&CAN_TX_Buffer,0x48);//Extended Data Frame length=8
+        //id
+        RingBuffer_Insert(&CAN_TX_Buffer,0x01);
+        RingBuffer_Insert(&CAN_TX_Buffer,0x00);
+        RingBuffer_Insert(&CAN_TX_Buffer,(uint8_t)(microcontroller_id>>8));
+        RingBuffer_Insert(&CAN_TX_Buffer,(uint8_t)microcontroller_id);
+        //data
+        RingBuffer_Insert(&CAN_TX_Buffer,MICROCONTROLLER_TYPE);
+        RingBuffer_Insert(&CAN_TX_Buffer,PROTOCOL_VERSIE);
+        RingBuffer_Insert(&CAN_TX_Buffer,module_adres);
+        RingBuffer_Insert(&CAN_TX_Buffer,EE_IO_block);
+        RingBuffer_Insert(&CAN_TX_Buffer,I_max_block);
+        RingBuffer_Insert(&CAN_TX_Buffer,O_max_block);
+        RingBuffer_Insert(&CAN_TX_Buffer,data1);
+        RingBuffer_Insert(&CAN_TX_Buffer,data2);
+        MCP2515_poll_TX();
+        while (RingBuffer_GetFreeCount(&CAN_TX_Buffer)<(13)) {
+            MCP2515_poll_TX();
+        }
+        RingBuffer_Insert(&CAN_TX_Buffer,0x48);//Extended Data Frame length=8
+        //id
+        RingBuffer_Insert(&CAN_TX_Buffer,0x02);
+        RingBuffer_Insert(&CAN_TX_Buffer,0x00);
+        RingBuffer_Insert(&CAN_TX_Buffer,(uint8_t)(microcontroller_id>>8));
+        RingBuffer_Insert(&CAN_TX_Buffer,(uint8_t)microcontroller_id);
+        //data
+        RingBuffer_Insert(&CAN_TX_Buffer,GIT_COMMIT_SHA[0]);
+        RingBuffer_Insert(&CAN_TX_Buffer,GIT_COMMIT_SHA[1]);
+        RingBuffer_Insert(&CAN_TX_Buffer,GIT_COMMIT_SHA[2]);
+        RingBuffer_Insert(&CAN_TX_Buffer,GIT_COMMIT_SHA[3]);
+        RingBuffer_Insert(&CAN_TX_Buffer,GIT_COMMIT_SHA[4]);
+        RingBuffer_Insert(&CAN_TX_Buffer,GIT_COMMIT_SHA[5]);
+        RingBuffer_Insert(&CAN_TX_Buffer,GIT_COMMIT_SHA[6]);
+        RingBuffer_Insert(&CAN_TX_Buffer,GIT_COMMIT_SHA[7]);
+        MCP2515_poll_TX();
+#else
         //                         0x1FFFFFFF | 0xFFFF max 29-bit
         CAN_TX_msg.id           = (0x01000000 | microcontroller_id);
         CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
@@ -442,7 +492,6 @@ struct EBUSD_telegram EBUSD_telegram_master;
         while (MCP2515_message_TX()==0) {
             //0==Error no Transmit buffer empty
         }
-
         CAN_TX_msg.id           = (0x02000000 | microcontroller_id);
         CAN_TX_msg.ext_id       = CAN_EXTENDED_FRAME;
         CAN_TX_msg.rtr          = 0;
@@ -459,6 +508,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
         while (MCP2515_message_TX()==0) {
             //0==Error no Transmit buffer empty
         }
+#endif
     }
 
     static void USART_echo_id_Adres(uint8_t data1, uint8_t data2)
@@ -868,7 +918,39 @@ struct EBUSD_telegram EBUSD_telegram_master;
             {
                 if(EBUSD_telegram_master.ZZ==0xfe){
                     //is een broadcast
+#ifdef Dev_TX_buffer
 
+                    uint8_t length=EBUSD_telegram_master.NN;
+                    uint8_t can_Number=0;
+                    while (length>0) {
+                        uint8_t te_versturen=length;
+                        if(te_versturen>7){
+                            te_versturen=7;
+                        }
+                        uint8_t telegram_start = te_versturen+1;
+                        telegram_start |=0x70;//Extended Data Frame + naar buffer 3
+                        while (RingBuffer_GetFreeCount(&CAN_TX_Buffer)<(te_versturen+6)) {
+                            MCP2515_poll_TX();
+                        }
+                        RingBuffer_Insert(&CAN_TX_Buffer,telegram_start);
+                        //id
+                        RingBuffer_Insert(&CAN_TX_Buffer,ebusd_master_id_To_CAN_id());
+                        RingBuffer_Insert(&CAN_TX_Buffer,EBUSD_telegram_master.ZZ);
+                        RingBuffer_Insert(&CAN_TX_Buffer,EBUSD_telegram_master.PB);
+                        RingBuffer_Insert(&CAN_TX_Buffer,EBUSD_telegram_master.SB);
+                        //data
+                        RingBuffer_Insert(&CAN_TX_Buffer,0xA0+can_Number);
+                        uint8_t val=0;
+                        for (;val<te_versturen;++val) {
+                            RingBuffer_Insert(
+                                        &CAN_TX_Buffer,
+                                        EBUSD_telegram_master.data_byte[val+(can_Number*7)]);
+                        }
+                        MCP2515_poll_TX();
+                        length = length - val;
+                        ++can_Number;
+                    }
+#else
                     uint8_t length=EBUSD_telegram_master.NN;
                     uint8_t can_Number=0;
                     while (length>0) {
@@ -891,6 +973,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
                         length = length - val;
                         ++can_Number;
                     }
+#endif
                 }
                 status=0x00;
                 return;
@@ -1001,6 +1084,70 @@ struct EBUSD_telegram EBUSD_telegram_master;
             EBUSD_telegram_master.ACK=RingBuffer_Remove(&RX_Buffer_1);
 
             if(EBUSD_telegram_master.ACK==EBUSD_ACK_ok){
+
+#ifdef Dev_TX_buffer
+
+                    uint8_t length=EBUSD_telegram_master.NN;
+                    uint8_t can_Number=0;
+                    while (length>0) {
+                        uint8_t te_versturen=length;
+                        if(te_versturen>7){
+                            te_versturen=7;
+                        }
+                        uint8_t telegram_start = te_versturen+1;
+                        telegram_start |=0x70;//Extended Data Frame + naar buffer 3
+                        while (RingBuffer_GetFreeCount(&CAN_TX_Buffer)<(te_versturen+6)) {
+                            MCP2515_poll_TX();
+                        }
+                        RingBuffer_Insert(&CAN_TX_Buffer,telegram_start);
+                        //id
+                        RingBuffer_Insert(&CAN_TX_Buffer,ebusd_master_id_To_CAN_id());
+                        RingBuffer_Insert(&CAN_TX_Buffer,EBUSD_telegram_master.ZZ);
+                        RingBuffer_Insert(&CAN_TX_Buffer,EBUSD_telegram_master.PB);
+                        RingBuffer_Insert(&CAN_TX_Buffer,EBUSD_telegram_master.SB);
+                        //data
+                        RingBuffer_Insert(&CAN_TX_Buffer,0xF0+can_Number);
+                        uint8_t val=0;
+                        for (;val<te_versturen;++val) {
+                            RingBuffer_Insert(
+                                        &CAN_TX_Buffer,
+                                        EBUSD_telegram_master.data_byte[val+(can_Number*7)]);
+                        }
+                        MCP2515_poll_TX();
+                        length = length - val;
+                        ++can_Number;
+                    }
+                    length=EBUSD_telegram_master.Slave_NN;
+                    can_Number=0;
+                    while (length>0) {
+                        uint8_t te_versturen=length;
+                        if(te_versturen>7){
+                            te_versturen=7;
+                        }
+                        uint8_t telegram_start = te_versturen+1;
+                        telegram_start |=0x70;//Extended Data Frame + naar buffer 3
+                        while (RingBuffer_GetFreeCount(&CAN_TX_Buffer)<(te_versturen+6)) {
+                            MCP2515_poll_TX();
+                        }
+                        RingBuffer_Insert(&CAN_TX_Buffer,telegram_start);
+                        //id
+                        RingBuffer_Insert(&CAN_TX_Buffer,ebusd_master_id_To_CAN_id());
+                        RingBuffer_Insert(&CAN_TX_Buffer,EBUSD_telegram_master.ZZ);
+                        RingBuffer_Insert(&CAN_TX_Buffer,EBUSD_telegram_master.PB);
+                        RingBuffer_Insert(&CAN_TX_Buffer,EBUSD_telegram_master.SB);
+                        //data
+                        RingBuffer_Insert(&CAN_TX_Buffer,0xf3+can_Number);
+                        uint8_t val=0;
+                        for (;val<te_versturen;++val) {
+                            RingBuffer_Insert(
+                                        &CAN_TX_Buffer,
+                                        EBUSD_telegram_master.Slave_data_byte[val+(can_Number*7)]);
+                        }
+                        MCP2515_poll_TX();
+                        length = length - val;
+                        ++can_Number;
+                    }
+#else
                 uint8_t length=EBUSD_telegram_master.NN;
                 uint8_t can_Number=0;
                 while (length>0) {
@@ -1046,6 +1193,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
                     length = length - val;
                     ++can_Number;
                 }
+#endif
                 status=0x00;
                 return;
             }
@@ -1360,7 +1508,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
             uint8_t length = CAN_RX_msg.length;
             length -= 4;
             uint16_t ee_adres;
-            ee_adres = (CAN_RX_msg.data_byte[2] << 8);
+            ee_adres = (uint16_t)(CAN_RX_msg.data_byte[2] << 8);
             ee_adres |= CAN_RX_msg.data_byte[3];
             uint8_t temp[4];
             temp[0] = 0;
@@ -2031,6 +2179,9 @@ struct EBUSD_telegram EBUSD_telegram_master;
                 TCNT3=0;
             }
             wdt_reset(); /* Reset Watchdog timer*/
+#ifdef Dev_TX_buffer
+            if(!RingBuffer_IsEmpty(&CAN_TX_Buffer)) MCP2515_poll_TX();
+#endif
             Receive_USART0();
             /* verwerk de RX USART0 buffer */
             uint8_t RX_BufferCount = RingBuffer_GetCount(&RX_Buffer);
@@ -2218,7 +2369,7 @@ struct EBUSD_telegram EBUSD_telegram_master;
                     typedef union
                     {
                         uint32_t long_id;
-                        uint8_t  int_id[8];
+                        uint8_t  int_id[4];
                     } ID;
                     ID id;
                     id.long_id = CAN_RX_msg.id;

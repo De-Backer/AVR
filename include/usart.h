@@ -37,11 +37,11 @@ enum Baud_rate {B2400bps,
     void         Test_Transmit_USART0();
     void         Receive_USART0();
     void         Receive_USART1();
-    RingBuffer_t RX_Buffer;
-    uint8_t      RX_BufferData[20];
+    extern RingBuffer_t RX_Buffer;
+    extern uint8_t      RX_BufferData[20];
 
-    RingBuffer_t RX_Buffer_1;
-    uint8_t      RX_BufferData_1[10];
+    extern RingBuffer_t RX_Buffer_1;
+    extern uint8_t      RX_BufferData_1[10];
 
 #    ifdef __cplusplus
 } // extern "C"
