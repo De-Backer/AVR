@@ -1996,12 +1996,12 @@ struct EBUSD_telegram EBUSD_telegram_master;
             if ((TCNT3 & 0x1000) && poling==0){
                 poling=1;
                 v_pinA=input_pol((PINA&~DDRA), v_pinA, 0x00);
-                v_pinB=input_pol((PINB&~DDRB), v_pinB, 0x08);
+                uint8_t masker=(~DDRB);
+                masker&=~(0x01<<INT_CAN);//intrupt can
+                v_pinB=input_pol((PINB&~masker), v_pinB, 0x08);
                 v_pinC=input_pol((PINC&~DDRC), v_pinC, 0x10);
-                uint8_t masker=(~DDRD);
-                if(1){
-                    masker&=(~0x04);
-                }
+                masker=(~DDRD);
+                masker&=(~0x07);//USART Rx Tx
                 v_pinD=input_pol((PIND&masker), v_pinD, 0x18);
 
                 for (uint8_t var=0; var<8; ++var) {
